@@ -1,6 +1,6 @@
 import pytest
 
-from ocr_engine import ocr_image
+from ocr.text_extractor import ocr_image
 
 
 class TestOcrImage:
