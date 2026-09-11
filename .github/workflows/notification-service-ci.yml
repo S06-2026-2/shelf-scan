@@ -1,0 +1,4 @@
+name: notification-service-ci.yml
+on:
+
+jobs:
