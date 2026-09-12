@@ -1,0 +1,4 @@
+name: ocr-service-ci.yml
+on:
+
+jobs:
