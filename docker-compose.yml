@@ -1,0 +1,16 @@
+services:
+  notification-db:
+    image: postgres:16
+    container_name: notification-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shelf_scan_cliente
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+
+volumes:
+  notification_db_data:
