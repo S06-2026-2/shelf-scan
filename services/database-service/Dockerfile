@@ -19,7 +19,7 @@ COPY src ./src
 # Compila o projeto gerando o arquivo .jar ignorando testes (obs.: testes já rodam no GitHub Actions)
 RUN ./mvnw clean package -DskipTests
 
-
+'
 
 FROM eclipse-temurin:25-jre-alpine
 
