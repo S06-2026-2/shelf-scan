@@ -4,14 +4,13 @@ on:
   push:
     branches: [ "main", "dev" ]
     paths:
-      - 'services/database-service/**'              # Executa se houver alteração nos arquivos desse serviço
-      - '.github/workflows/ci-database-service.yml' # Executa se este próprio arquivo de CI for alterado
-      
+      - 'services/database-service/**'
+      - '.github/workflows/database-service-ci.yml'
   pull_request:
     branches: [ "main", "dev" ]
     paths:
-      - 'services/database-service/**'              
-      - '.github/workflows/ci-database-service.yml' 
+      - 'services/database-service/**'
+      - '.github/workflows/database-service-ci.yml'
 
 jobs:
   build-and-test:
@@ -20,14 +19,12 @@ jobs:
 
     defaults:
       run:
-        working-directory: services/database-service # Move o terminal para pasta raiz do microsserviço antes de rodar os comandos
+        working-directory: services/database-service
 
     steps:
-      # clona o repositório do github
       - name: Checkout do Repositório
         uses: actions/checkout@v4
 
-      # instala e configura o ambiente Java JDK 25 necessário para o Spring Boot
       - name: Configurar JDK 25
         uses: actions/setup-java@v4
         with:
