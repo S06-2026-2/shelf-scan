@@ -1,16 +1,60 @@
+version: '3.8'
+
 services:
+  # -----------------------------------------------------------------
+  # Faixa de Portas: 8301 - 8320
+  # -----------------------------------------------------------------
+  
+
+
+  # -----------------------------------------------------------------
+  # Faixa de Portas: 8321 - 8340
+  # -----------------------------------------------------------------
+  neo4j:
+    image: neo4j:5-community
+    container_name: shelfscan-neo4j
+    restart: unless-stopped
+    ports:
+      - "8339:7474" # Painel Web Browser (http://localhost:8339)
+      - "8340:7687" # Conexão Bolt do Driver Java (bolt://localhost:8340)
+    environment:
+      - NEO4J_AUTH=neo4j/shelfscan123
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
+  database-service:
+    build:
+      context: ./services/database-service
+      dockerfile: Dockerfile
+    container_name: shelfscan-database-service
+    restart: unless-stopped
+    ports:
+      - "8321:8080" # Host (8321)
+    environment:
+      - SPRING_NEO4J_URI=bolt://neo4j:7687
+      - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
+      - SPRING_NEO4J_AUTHENTICATION_PASSWORD=shelfscan123
+    depends_on:
+      - neo4j
+  # -----------------------------------------------------------------
+  # Faixa de Portas: 8341 - 8360
+  # -----------------------------------------------------------------
   notification-db:
     image: postgres:16
-    container_name: notification-db
+    container_name: shelfscan-notification-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: shelf_scan_cliente
       POSTGRES_USER: notification_user
       POSTGRES_PASSWORD: notification_pass
     ports:
-      - "5432:5432"
+      - "8332:5432"
     volumes:
       - notification_db_data:/var/lib/postgresql/data
 
 volumes:
   notification_db_data:
+  neo4j_data:
+  neo4j_logs:
