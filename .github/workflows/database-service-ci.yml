@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - feat-db
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
@@ -12,6 +13,7 @@ on:
     branches:
       - main
       - dev
+      - feat-db
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
