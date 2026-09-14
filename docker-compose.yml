@@ -50,7 +50,7 @@ services:
       POSTGRES_USER: notification_user
       POSTGRES_PASSWORD: notification_pass
     ports:
-      - "8332:5432"
+      - "8341:5432" # Host (8341)
     volumes:
       - notification_db_data:/var/lib/postgresql/data
 
