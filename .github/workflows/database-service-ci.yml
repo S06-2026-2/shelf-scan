@@ -2,12 +2,16 @@ name: CI - Database Service
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches:
+      - main
+      - dev
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
   pull_request:
-    branches: [ "main", "dev" ]
+    branches:
+      - main
+      - dev
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
