@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - feat-ocr-service/*
     paths:
       - 'services/ocr-service/**'
       - '.github/workflows/ocr-service-ci.yml'
@@ -12,6 +13,7 @@ on:
     branches:
       - main
       - dev
+      - feat-ocr-service/*
     paths:
       - 'services/ocr-service/**'
       - '.github/workflows/ocr-service-ci.yml'
