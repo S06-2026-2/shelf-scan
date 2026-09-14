@@ -1,0 +1,75 @@
+name: OCR Service CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feat-ocr-service/*
+    paths:
+      - 'services/ocr-service/**'
+      - '.github/workflows/ocr-service-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+      - feat-ocr-service/*
+    paths:
+      - 'services/ocr-service/**'
+      - '.github/workflows/ocr-service-ci.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ocr-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: services/ocr-service/requirements.txt
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint with flake8
+        run: |
+          # interrompe o build se houver erro de sintaxe ou nome indefinido
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # o resto é só aviso — não quebra o pipeline, mas fica visível no log
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ocr-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: services/ocr-service/requirements.txt
+
+      - name: Install Tesseract OCR
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-por
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest -v
