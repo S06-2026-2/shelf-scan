@@ -36,7 +36,7 @@ RUN chown -R appuser:appgroup /app
 USER appuser
 
 # Expõe a porta padrão Spring Boot
-EXPOSE 8080
+EXPOSE 8321
 
 # Comando para rodar a aplicação Java
 ENTRYPOINT ["java", "-jar", "app.jar"]
