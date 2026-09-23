@@ -1,5 +1,5 @@
 server:
-  port: 8321
+  port: 8080
 
 spring:
   application:
@@ -7,10 +7,10 @@ spring:
 
   neo4j:
     # Conecta em localhost:8340 quando rodar pela IDE, ou em bolt://neo4j:7687 dentro do Docker
-    uri: ${SPRING_NEO4J_URI:bolt://localhost:8340}
+    uri: ${SPRING_NEO4J_URI:bolt://neo4j:7687}
     authentication:
-      username: ${SPRING_NEO4J_USERNAME:neo4j}
-      password: ${SPRING_NEO4J_PASSWORD:shelfscan123}
+      username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:shelfscan123}
 
   # Configurações para logs e diagnósticos
   data:
