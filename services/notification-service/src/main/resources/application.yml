@@ -17,3 +17,8 @@ spring:
 
 server:
   port: 8341
+
+telegram:
+  bot:
+    # Vazio = bot desativado (o serviço sobe normalmente sem ele)
+    token: ${TELEGRAM_BOT_TOKEN:}

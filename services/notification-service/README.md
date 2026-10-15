@@ -50,7 +50,8 @@ services/notification-service/
 - **Spring Web**, **Spring Data JPA**, **Spring Validation**, **Actuator**
 - **PostgreSQL** — persistência dos clientes/usuários do Telegram
 - **Flyway** — versionamento do schema
-- Bot do Telegram e stack de IA (Spring AI/LangChain4j): ainda a definir
+- **Telegram** — `telegrambots-longpolling` + `telegrambots-client` (long-polling, sem webhook)
+- Agentes de IA: chamada HTTP direta aos provedores de LLM (ainda a implementar)
 
 ## Setup do ambiente
 
@@ -68,6 +69,13 @@ java -jar target/notification-service-0.0.1-SNAPSHOT.jar
 ```
 
 O serviço sobe em `http://localhost:8341`. O Postgres fica exposto em `localhost:8342` (`shelf_scan_cliente` / `notification_user` / `notification_pass`, ver [docker-compose.yml](../../docker-compose.yml)).
+
+### Bot do Telegram
+
+O bot só liga se a variável de ambiente `TELEGRAM_BOT_TOKEN` estiver definida na janela do terminal em que o serviço sobe. Sem ela, o serviço funciona normalmente e loga `bot do Telegram desativado`.
+
+- Cada integrante usa o **próprio bot** de teste: crie um com o [@BotFather](https://t.me/BotFather) (`/newbot`). Dois processos com o mesmo token disputam as mensagens (erro 409).
+- Guarde o token num arquivo `.env` na raiz do repo (já ignorado pelo Git) e nunca o commite. O Spring Boot não lê `.env` sozinho: carregue as variáveis no terminal antes de rodar o `java -jar`.
 
 ### ⚠️ Problema conhecido no Windows: `mvnw spring-boot:run`
 
@@ -92,8 +100,9 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 
 - [x] Cadastro/consulta de cliente por `telegram_chat_id` (JPA + Flyway)
 - [ ] Endpoint para receber o evento "livro salvo" do `database-service`
-- [ ] Integração com a Telegram Bot API (webhook ou polling)
-- [ ] Agente conversacional (`TelegramBotAgent`)
+- [x] Integração com a Telegram Bot API (long-polling; `TelegramBotAgent` responde ao `/start`)
+- [ ] Vínculo entre o usuário do Shelf Scan e o chat do Telegram (link com código)
+- [ ] Agente conversacional (IA) no chat do bot
 - [ ] Agente formatador de mensagens (`MessageFormatterAgent`)
 - [ ] Agente recomendador de livros
 - [ ] Container do próprio serviço no `docker-compose.yml` (hoje só o banco está lá)
