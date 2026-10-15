@@ -22,3 +22,6 @@ telegram:
   bot:
     # Vazio = bot desativado (o serviço sobe normalmente sem ele)
     token: ${TELEGRAM_BOT_TOKEN:}
+  vinculo:
+    # Por quanto tempo o link "Conectar Telegram" continua valendo
+    validade-minutos: 15
