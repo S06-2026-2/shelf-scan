@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------
-# Imagem do ocr-service: Python + Tesseract + dependências + testes.
+# Imagem do ocr-service: Python + Tesseract + modelo EAST + dependências + testes.
 # Por enquanto o comando padrão roda o pytest (a API entra depois).
 #   docker build -t shelfscan-ocr services/ocr-service
 #   docker run --rm shelfscan-ocr
@@ -24,6 +24,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Modelo EAST (~96 MB) antes das dependências: esta camada só é refeita
+# quando o script muda, não a cada mudança no requirements ou no código
+COPY scripts/download_east.py ./scripts/
+RUN python scripts/download_east.py
 
 # Dependências antes do código para aproveitar o cache do Docker
 COPY requirements.txt requirements-dev.txt ./
