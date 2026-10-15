@@ -241,3 +241,6 @@ autogluon_comparativo_modelos.parquet
 src/data/cache/
 *.parquet
 *.csv
+
+# Modelos baixados por scripts/download_east.py (~96 MB, fora do git)
+models/
