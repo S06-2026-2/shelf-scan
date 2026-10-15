@@ -33,3 +33,8 @@ build/
 .vscode/
 
 .idea/
+
+### Segredos locais (tokens, chaves) ###
+.env
+.env.*
+!.env.example
