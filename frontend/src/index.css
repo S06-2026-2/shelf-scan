@@ -1,0 +1,107 @@
+:root {
+  /* Marca */
+  --accent: #2b4fbf;
+  --accent-strong: #1f3e99;
+  --accent-soft: #e6ecfc;
+  --gold: #ad7a2e;
+  --gold-soft: #f5ead6;
+  --gold-vivid: #f2c14e;
+
+  /* Superfícies e texto */
+  --bg: #eef1f7;
+  --surface: #ffffff;
+  --surface-alt: #f5f7fb;
+  --line: #d5dbe8;
+  --line-soft: #e4e8f1;
+  --ink: #172033;
+  --ink-muted: #5b6578;
+  --ink-faint: #8791a5;
+
+  /* Estados de leitura */
+  --status-reading: #0e7c86;
+  --status-reading-bg: #ddf1f2;
+  --status-wishlist: #7c4fc7;
+  --status-wishlist-bg: #f0e9fb;
+  --status-done: #1f7a55;
+  --status-done-bg: #e1f3ea;
+  --status-loan: #ae5a34;
+  --status-loan-bg: #f8e9e1;
+
+  /* Telegram */
+  --tg: #229ed9;
+  --tg-soft: #e6f5fc;
+
+  --shadow-sm: 0 1px 2px rgba(23, 32, 51, 0.06);
+  --shadow-md: 0 4px 10px rgba(23, 32, 51, 0.07), 0 1px 2px rgba(23, 32, 51, 0.05);
+  --shadow-lg: 0 12px 32px rgba(23, 32, 51, 0.14), 0 2px 6px rgba(23, 32, 51, 0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-ui: 'Public Sans', system-ui, 'Segoe UI', sans-serif;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #7c93f5;
+    --accent-strong: #9baefa;
+    --accent-soft: #1d2748;
+    --gold: #e3b65a;
+    --gold-soft: #33290f;
+
+    --bg: #0e1320;
+    --surface: #151b2b;
+    --surface-alt: #1a2236;
+    --line: #2a3350;
+    --line-soft: #212a42;
+    --ink: #e8ecf6;
+    --ink-muted: #9aa5bd;
+    --ink-faint: #6b7691;
+
+    --status-reading: #4fc3cc;
+    --status-reading-bg: #123035;
+    --status-wishlist: #b692ee;
+    --status-wishlist-bg: #251d38;
+    --status-done: #5ccb98;
+    --status-done-bg: #153327;
+    --status-loan: #e08a5e;
+    --status-loan-bg: #33221a;
+
+    --tg: #4fc0f0;
+    --tg-soft: #112a36;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.5);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-wrap: balance;
+}

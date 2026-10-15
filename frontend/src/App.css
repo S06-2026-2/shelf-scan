@@ -1,0 +1,49 @@
+.marca {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.marca section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.marca h2 {
+  font-size: 1.05rem;
+}
+
+.marca-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.amostra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.amostra-cor {
+  width: 96px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+.selo {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
