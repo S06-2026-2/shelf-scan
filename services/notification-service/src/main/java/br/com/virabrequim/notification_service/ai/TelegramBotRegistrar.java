@@ -1,5 +1,6 @@
 package br.com.virabrequim.notification_service.ai;
 
+import br.com.virabrequim.notification_service.vinculo.ConexaoTelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -21,10 +22,14 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(TelegramBotRegistrar.class);
 
     private final String token;
+    private final ConexaoTelegramService conexaoTelegramService;
     private TelegramBotsLongPollingApplication longPollingApplication;
 
-    public TelegramBotRegistrar(@Value("${telegram.bot.token:}") String token) {
+    public TelegramBotRegistrar(
+            @Value("${telegram.bot.token:}") String token,
+            ConexaoTelegramService conexaoTelegramService) {
         this.token = token;
+        this.conexaoTelegramService = conexaoTelegramService;
     }
 
     @Override
@@ -36,7 +41,8 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
 
         try {
             longPollingApplication = new TelegramBotsLongPollingApplication();
-            longPollingApplication.registerBot(token, new TelegramBotAgent(new OkHttpTelegramClient(token)));
+            TelegramBotAgent agente = new TelegramBotAgent(new OkHttpTelegramClient(token), conexaoTelegramService);
+            longPollingApplication.registerBot(token, agente);
             log.info("Bot do Telegram registrado e escutando mensagens (long-polling).");
         } catch (TelegramApiException e) {
             log.error("Não foi possível registrar o bot do Telegram; o serviço segue sem ele.", e);

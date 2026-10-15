@@ -1,10 +1,12 @@
 package br.com.virabrequim.notification_service.ai;
 
+import br.com.virabrequim.notification_service.vinculo.ConexaoTelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.longpolling.util.DefaultLongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
@@ -14,9 +16,19 @@ import org.telegram.telegrambots.meta.generics.TelegramClient;
  */
 public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
 
+    // Nome que o grupo deu ao bot.
+    static final String NOME_DO_BOT = "Christopher";
+
     static final String BOAS_VINDAS =
-            "Olá! Eu sou o bot do Shelf Scan. Para receber aqui os avisos dos seus livros, "
+            "Olá! Eu sou o " + NOME_DO_BOT + ", o bot do Shelf Scan. Para receber aqui os avisos dos seus livros, "
                     + "conecte sua conta pelo botão \"Conectar Telegram\" no site.";
+
+    static final String CONECTADO =
+            "Pronto! Seu Telegram está conectado ao Shelf Scan. "
+                    + "Vou te avisar por aqui quando um livro seu for salvo.";
+
+    static final String CODIGO_INVALIDO =
+            "Esse link expirou ou já foi usado. Volte ao site e peça um novo em \"Conectar Telegram\".";
 
     static final String NAO_ENTENDI =
             "Ainda não sei responder a isso. Por enquanto só entendo o comando /start.";
@@ -24,9 +36,11 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
     private static final Logger log = LoggerFactory.getLogger(TelegramBotAgent.class);
 
     private final TelegramClient telegramClient;
+    private final ConexaoTelegramService conexaoTelegramService;
 
-    public TelegramBotAgent(TelegramClient telegramClient) {
+    public TelegramBotAgent(TelegramClient telegramClient, ConexaoTelegramService conexaoTelegramService) {
         this.telegramClient = telegramClient;
+        this.conexaoTelegramService = conexaoTelegramService;
     }
 
     @Override
@@ -36,17 +50,31 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
         }
 
         Long chatId = update.getMessage().getChatId();
-        String resposta = tratarMensagem(update.getMessage().getText());
+        User remetente = update.getMessage().getFrom();
+        String nome = remetente != null ? remetente.getFirstName() : null;
+        String username = remetente != null ? remetente.getUserName() : null;
+
+        String resposta = tratarMensagem(chatId, update.getMessage().getText(), nome, username);
         enviar(chatId, resposta);
     }
 
-    String tratarMensagem(String texto) {
-        return comando(texto).equals("/start") ? BOAS_VINDAS : NAO_ENTENDI;
+    String tratarMensagem(Long chatId, String texto, String nome, String username) {
+        String[] termos = texto.trim().split("\\s+");
+
+        if (!comando(termos[0]).equals("/start")) {
+            return NAO_ENTENDI;
+        }
+        if (termos.length < 2) {
+            return BOAS_VINDAS;
+        }
+
+        // O código é uma credencial de uso único: nunca vai para o log.
+        boolean conectou = conexaoTelegramService.conectar(termos[1], chatId, nome, username);
+        return conectou ? CONECTADO : CODIGO_INVALIDO;
     }
 
-    // "/start", "/start abc123" e "/start@nome_do_bot" resultam todos em "/start"
-    private static String comando(String texto) {
-        String primeiroTermo = texto.trim().split("\\s+")[0];
+    // "/start" e "/start@nome_do_bot" resultam ambos em "/start"
+    private static String comando(String primeiroTermo) {
         int posicaoArroba = primeiroTermo.indexOf('@');
         return posicaoArroba >= 0 ? primeiroTermo.substring(0, posicaoArroba) : primeiroTermo;
     }
