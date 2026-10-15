@@ -12,6 +12,31 @@ Responsável por três frentes do Shelf Scan:
 
 ## Como funciona (fluxo pretendido)
 
+### 1. Conectar o Telegram (opcional, escolha do usuário)
+
+Quem não quer receber nada no Telegram simplesmente não existe neste serviço.
+
+```
+usuário (logado no site) pede "Conectar Telegram"
+      │
+      ▼
+front chama o notification-service com o usuarioId
+      │
+      ▼
+notification-service gera um código aleatório de uso único (validade curta)
+e devolve o link https://t.me/<bot>?start=<código>
+      │
+      ▼
+usuário abre o link e toca em "Iniciar" → o bot recebe "/start <código>"
+      │
+      ▼
+notification-service grava usuarioId ↔ chat_id e invalida o código
+```
+
+O `chat_id` é guardado **somente aqui**; o `database-service` conhece apenas o `usuarioId`.
+
+### 2. Notificar quando um livro é salvo
+
 ```
 ocr-service extrai dados do livro
       │
@@ -19,16 +44,24 @@ ocr-service extrai dados do livro
 database-service salva o livro (Neo4j)
       │
       ▼
-database-service avisa o notification-service (REST — contrato ainda em definição)
+database-service avisa o notification-service com o usuarioId (REST)
       │
       ▼
-notification-service busca o Cliente pelo telegram_chat_id
+notification-service procura o vínculo do usuarioId
+(sem vínculo = usuário não quer Telegram → ignora)
       │
       ▼
 Telegram Bot API envia a notificação ao usuário
 ```
 
 O agente recomendador consulta os dados do usuário (gostos + livros salvos) para sugerir novas leituras; o agente conversacional atende o usuário diretamente pelo chat do bot.
+
+## Decisões e pontos a discutir depois
+
+- **Autenticação entre serviços e no front**: adiada. Enquanto isso, como o ID do usuário é sequencial, alguém poderia gerar um código de vínculo para o ID de outra pessoa. Limitação conhecida.
+- **Falha na entrega do evento**: a ideia é um buffer no `database-service` segurando o evento até o `notification-service` responder (e o evento precisará de um identificador para evitar notificação duplicada).
+- **Exclusão de conta**: quando a conta for excluída no `database-service`, o vínculo aqui precisa ser removido. Como o `notification-service` ficará sabendo ainda não foi definido.
+- **Tipo do ID do usuário**: hoje é o ID padrão do Neo4j (`Long`); o plano é migrar para um padrão de mercado (ex.: UUID). Por isso o `usuarioId` é guardado como texto.
 
 ## Estrutura
 
