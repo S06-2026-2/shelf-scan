@@ -130,7 +130,7 @@ Quando o usuário toca em "Iniciar" no bot, o `/start <código>` grava o víncul
 
 ### API para o database-service (notificações)
 
-Contrato **provisório**: os campos do evento ainda serão fechados com quem cuida do `database-service`.
+Contrato combinado com quem cuida do `database-service` (campos `usuarioId`, `titulo` e `autor`). Ainda não há identificador de evento.
 
 | Método e rota | Corpo | O que faz |
 |---|---|---|
@@ -168,7 +168,7 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 ## Status
 
 - [x] Cadastro/consulta de cliente por `telegram_chat_id` (JPA + Flyway)
-- [x] Endpoint para receber o evento "livro salvo" do `database-service` (contrato provisório)
+- [x] Endpoint para receber o evento "livro salvo" do `database-service` (campos combinados; falta o `eventId`)
 - [x] Integração com a Telegram Bot API (long-polling; `TelegramBotAgent` responde ao `/start`)
 - [x] Vínculo entre o usuário do Shelf Scan e o chat do Telegram (link com código, endpoints para o front e CORS)
 - [ ] Agente conversacional (IA) no chat do bot
