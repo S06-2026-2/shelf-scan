@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 # Médias RGB do ImageNet, usadas no treino do EAST (subtraídas de cada canal)
 EAST_MEAN = (123.68, 116.78, 103.94)
@@ -85,3 +86,69 @@ def east_forward(net, blob):
     
     net.setInput(blob)
     return net.forward(EAST_OUTPUT_LAYERS)
+
+
+class EastTextDetector:
+    """
+    Detector de texto baseado no modelo EAST 
+    
+
+    """
+
+    def __init__(self, model_path, confidence=0.5, nms=0.4, max_side=1280):
+        """
+        Inicializa o detector de texto EAST
+
+        ARGS:
+            model_path: Caminho para o arquivo do modelo EAST
+            confidence: Limite de confiança para considerar uma detecção válida
+            nms: Limite de supressão não máxima (NMS) para filtrar caixas sobrepostas
+            max_side: Lado máximo da imagem redimensionada (deve ser múltiplo de 32 e pelo menos 32)
+        """
+
+        self.net = load_east_model(model_path)
+        self.confidence = confidence
+        self.nms = nms
+        self.max_side = max_side
+
+        self.model = cv2.dnn.TextDetectionModel(model_path)
+        self.model.setConfidenceThreshold(confidence)
+        self.model.setNMSThreshold(nms)
+
+    def detect_text(self, img):
+        """
+        Detecta regiões de texto na imagem usando o modelo EAST
+        
+        ARGS:
+            img: Imagem com os 3 canais padrões do OpenCV BGR
+
+        RETURNS:
+            regions: Lista de dicionários, cada um contendo:
+                - "box": Lista de 4 pontos (x, y) representando a caixa delimitadora do texto
+                - "confidence": Confiança da detecção
+
+        """
+
+        h_origin, w_origin = img.shape[:2]
+
+        img_reshaped, rW, rH = img_reshape(img, self.max_side)
+
+        w, h = img_reshaped.shape[:2]
+        self.model.setInputParams(size=(w, h), scale=1.0, mean=EAST_MEAN, swapRB=True)
+
+        boxes, confidences = self.model.detect(img_reshaped)
+
+        regions = []
+        for box, conf in zip(boxes, confidences):
+            pts = np.array(box, dtype=np.float32) * (rW, rH)
+
+            pts[:,0] = np.clip(pts[:,0], 0, w_origin - 1)
+            pts[:,1] = np.clip(pts[:,1], 0, h_origin - 1)
+
+            dict = {"box": np.rint(pts).astype(np.int).tolist, 
+             "confidence": float(conf)}
+
+            regions.append(dict)
+
+        return regions
+
