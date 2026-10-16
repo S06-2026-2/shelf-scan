@@ -33,5 +33,11 @@ build/
 .vscode/
 
 .idea/
+
 ### Claude Code ###
 CLAUDE.md
+
+### Segredos locais (tokens, chaves) ###
+.env
+.env.*
+!.env.example
