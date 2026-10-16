@@ -1,0 +1,55 @@
+.passos {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.passo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.passo + .passo::before {
+  content: '';
+  width: 30px;
+  height: 1.5px;
+  margin-right: 4px;
+  background: var(--line);
+}
+
+.passo-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.passo.atual {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.passo.atual .passo-numero {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.passo.feito .passo-numero {
+  background: var(--status-done);
+  border-color: var(--status-done);
+  color: #fff;
+}

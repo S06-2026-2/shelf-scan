@@ -1,0 +1,63 @@
+.capa {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12% 11%;
+  color: #fff;
+  box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* lombada */
+.capa::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 14%;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* brilho */
+.capa::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 40%);
+}
+
+.capa-filete {
+  width: 22%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.capa-titulo {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.capa-autor {
+  position: relative;
+  z-index: 1;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.capa-1 { background: linear-gradient(160deg, #2c8465, #164534); }
+.capa-2 { background: linear-gradient(160deg, #9c3e4e, #651f2b); }
+.capa-3 { background: linear-gradient(160deg, #3c63a8, #22366b); }
+.capa-4 { background: linear-gradient(160deg, #b98a3b, #7c5a1e); }
+.capa-5 { background: linear-gradient(160deg, #7c4fc7, #4e2f8a); }
+.capa-6 { background: linear-gradient(160deg, #5a7a3a, #374b22); }
+.capa-7 { background: linear-gradient(160deg, #b15e3b, #7a3b21); }
+.capa-8 { background: linear-gradient(160deg, #3e4652, #232830); }

@@ -1,0 +1,33 @@
+.cartao-telegram {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.cartao-telegram-texto {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.cartao-telegram-texto h2 {
+  font-size: 1rem;
+}
+
+.cartao-telegram-texto p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.cartao-telegram-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
