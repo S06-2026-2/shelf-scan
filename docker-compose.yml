@@ -15,8 +15,8 @@ services:
     container_name: shelfscan-neo4j
     restart: unless-stopped
     ports:
-      - "8339:7474" # Painel Web Browser (http://localhost:8339)
-      - "8340:7687" # Conexão Bolt do Driver Java (bolt://localhost:8340)
+      - "8339:7474" # Painel Web Browser neo4j
+      - "8340:7687" # Conexão Bolt do Driver Java
     environment:
       - NEO4J_AUTH=neo4j/shelfscan123
       - NEO4J_PLUGINS=["apoc"]
@@ -31,7 +31,7 @@ services:
     container_name: shelfscan-database-service
     restart: unless-stopped
     ports:
-      - "8321:8080" # Host (8321)
+      - "8321:8080" # Redireciona a 8321 do Host para a 8080 interna do Spring
     environment:
       - SPRING_NEO4J_URI=bolt://neo4j:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
