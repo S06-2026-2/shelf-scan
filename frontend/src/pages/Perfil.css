@@ -1,8 +1,8 @@
 .perfil {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 820px;
+  gap: 28px;
+  max-width: 880px;
 }
 
 .perfil-cabecalho {
@@ -26,4 +26,172 @@
   height: 72px;
   font-size: 1.35rem;
   box-shadow: var(--shadow-md);
+}
+
+.perfil-numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  margin: 10px 0 0;
+}
+
+.perfil-numeros div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.perfil-numeros dt {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.perfil-numeros dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.perfil-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.perfil-secao h2 {
+  font-size: 1.02rem;
+}
+
+.perfil-secao ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.botao-pequeno {
+  padding: 6px 11px;
+  font-size: 0.76rem;
+}
+
+/* solicitações */
+.perfil-pedido {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.perfil-pedido:last-child {
+  border-bottom: 0;
+}
+
+.perfil-pedido-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.perfil-pedido-texto strong {
+  font-size: 0.88rem;
+}
+
+.perfil-pedido-texto span {
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+/* amigos */
+.perfil-amigos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 16px;
+}
+
+.perfil-amigo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* bibliotecas */
+.perfil-bibliotecas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.perfil-biblioteca {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 15px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.perfil-biblioteca h3 {
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+}
+
+.perfil-biblioteca p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+.perfil-membro {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--status-done-bg);
+  color: var(--status-done);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* recomendações */
+.perfil-recomendacoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 18px;
+}
+
+.perfil-recomendacao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.perfil-recomendacao strong {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+}
+
+.perfil-recomendacao-autor {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.perfil-selo-ia {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
