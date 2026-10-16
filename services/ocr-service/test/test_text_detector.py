@@ -1,6 +1,81 @@
 import numpy as np
+import pytest
 
 from ocr.text_detector import EAST_MEAN, blob_from_image, east_forward, img_reshape
+
+# (altura, largura) da entrada -> (altura, largura) esperada com max_side=1280
+RESHAPE_CASES = [
+    pytest.param((10, 5), (32, 32), id="minuscula-viraria-zero"),
+    pytest.param((300, 500), (288, 512), id="menor-que-o-limite"),
+    pytest.param((1761, 1181), (1280, 864), id="proporcao-da-amostra"),
+    pytest.param((3000, 4000), (960, 1280), id="foto-paisagem"),
+    pytest.param((4000, 3000), (1280, 960), id="foto-retrato"),
+]
+
+
+def blank_image(h, w):
+    """Imagem BGR preta de h×w: o img_reshape só depende do tamanho"""
+    return np.zeros((h, w, 3), dtype=np.uint8)
+
+
+class TestImgReshape:
+    """
+        Testes do redimensionamento de entrada do EAST (não precisam do modelo)
+    """
+
+    @pytest.mark.parametrize("size, expected", RESHAPE_CASES)
+    def test_output_dimensions(self, size, expected):
+        """
+        Imagens maiores que max_side são reduzidas preservando a proporção;
+        as menores mantêm o tamanho. Em ambos os casos, cada lado é
+        arredondado para o múltiplo de 32 mais próximo, com mínimo de 32.
+        """
+        img_redim, _, _ = img_reshape(blank_image(*size))
+
+        assert img_redim.shape[:2] == expected
+
+    @pytest.mark.parametrize("size, expected", RESHAPE_CASES)
+    def test_dimensions_are_valid_for_east(self, size, expected):
+        """
+        Nenhuma dimensão pode ser zero (o cv2.resize quebraria), deixar de
+        ser múltipla de 32 (as camadas do EAST não se encaixariam) ou
+        passar do limite (o EAST ficaria lento).
+        """
+        img_redim, _, _ = img_reshape(blank_image(*size))
+
+        for side in img_redim.shape[:2]:
+            assert side >= 32
+            assert side % 32 == 0
+            assert side <= 1280
+
+    @pytest.mark.parametrize("size, expected", RESHAPE_CASES)
+    def test_ratios_map_back_to_original(self, size, expected):
+        """
+        rW e rH levam as coordenadas da imagem reduzida de volta à original:
+        a largura reduzida vezes rW tem de dar a largura original (idem altura).
+        São duas razões porque cada lado é arredondado separadamente.
+        """
+        h, w = size
+
+        img_redim, rW, rH = img_reshape(blank_image(h, w))
+
+        assert img_redim.shape[1] * rW == pytest.approx(w)
+        assert img_redim.shape[0] * rH == pytest.approx(h)
+
+    def test_custom_max_side(self):
+        """Com max_side=640, a proporção da amostra vira 640×416"""
+        img_redim, _, _ = img_reshape(blank_image(1761, 1181), max_side=640)
+
+        assert img_redim.shape[:2] == (640, 416)
+
+    @pytest.mark.parametrize("max_side", [1010, 16, 0])
+    def test_invalid_max_side_raises(self, max_side):
+        """
+        max_side precisa ser múltiplo de 32 e pelo menos 32; caso contrário,
+        o arredondamento poderia passar do limite (1010 viraria 1024)
+        """
+        with pytest.raises(ValueError):
+            img_reshape(blank_image(100, 100), max_side=max_side)
 
 
 class TestBlobFromImage:
