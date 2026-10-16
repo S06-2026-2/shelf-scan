@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN ./mvnw clean package -DskipTests
 
 
 
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 # Cria um usuário não-root por segurança
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
