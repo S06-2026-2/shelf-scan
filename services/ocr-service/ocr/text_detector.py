@@ -106,12 +106,11 @@ class EastTextDetector:
             max_side: Lado máximo da imagem redimensionada (deve ser múltiplo de 32 e pelo menos 32)
         """
 
-        self.net = load_east_model(model_path)
         self.confidence = confidence
         self.nms = nms
         self.max_side = max_side
 
-        self.model = cv2.dnn.TextDetectionModel(model_path)
+        self.model = cv2.dnn.TextDetectionModel_EAST(model_path)
         self.model.setConfidenceThreshold(confidence)
         self.model.setNMSThreshold(nms)
 
@@ -133,7 +132,7 @@ class EastTextDetector:
 
         img_reshaped, rW, rH = img_reshape(img, self.max_side)
 
-        w, h = img_reshaped.shape[:2]
+        h, w = img_reshaped.shape[:2]
         self.model.setInputParams(size=(w, h), scale=1.0, mean=EAST_MEAN, swapRB=True)
 
         boxes, confidences = self.model.detect(img_reshaped)
@@ -145,10 +144,10 @@ class EastTextDetector:
             pts[:,0] = np.clip(pts[:,0], 0, w_origin - 1)
             pts[:,1] = np.clip(pts[:,1], 0, h_origin - 1)
 
-            dict = {"box": np.rint(pts).astype(np.int).tolist, 
+            region = {"box": np.rint(pts).astype(int).tolist(),
              "confidence": float(conf)}
 
-            regions.append(dict)
+            regions.append(region)
 
         return regions
 
