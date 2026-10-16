@@ -27,7 +27,7 @@ public class ConexaoTelegramService {
 
     public String gerarLink(String usuarioId) {
         if (usernameDoBot.isBlank()) {
-            throw new TelegramNaoConfiguradoException();
+            throw new TelegramNaoConfiguradoException("TELEGRAM_BOT_USERNAME");
         }
 
         String codigo = vinculoTelegramService.gerarCodigo(usuarioId);

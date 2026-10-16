@@ -67,6 +67,14 @@ class ClienteServiceTest {
     }
 
     @Test
+    void buscarConectado_devolveOClienteComOChatParaEnviar() {
+        clienteService.vincular("42", 1001L, "Ana", "ana");
+
+        assertEquals(1001L, clienteService.buscarConectado("42").orElseThrow().getTelegramChatId());
+        assertFalse(clienteService.buscarConectado("outro").isPresent());
+    }
+
+    @Test
     void estaConectado_ehFalsoParaQuemNuncaConectou() {
         assertFalse(clienteService.estaConectado("nunca-conectou"));
     }

@@ -52,7 +52,7 @@ class VinculoTelegramControllerTest {
 
     @Test
     void post_comBotNaoConfigurado_devolve503() throws Exception {
-        when(conexaoTelegramService.gerarLink("42")).thenThrow(new TelegramNaoConfiguradoException());
+        when(conexaoTelegramService.gerarLink("42")).thenThrow(new TelegramNaoConfiguradoException("TELEGRAM_BOT_USERNAME"));
 
         mockMvc.perform(post("/telegram/vinculos")
                         .contentType(MediaType.APPLICATION_JSON)
