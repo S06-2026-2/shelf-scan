@@ -33,3 +33,5 @@ build/
 .vscode/
 
 .idea/
+### Claude Code ###
+CLAUDE.md
