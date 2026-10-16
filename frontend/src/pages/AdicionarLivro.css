@@ -1,0 +1,90 @@
+.adicionar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 560px;
+}
+
+.adicionar h1 {
+  font-size: 1.25rem;
+}
+
+.adicionar-descricao {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+}
+
+.adicionar-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 220px;
+  padding: 28px 20px;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.adicionar-area strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.adicionar-area:hover,
+.adicionar-area.arrastando,
+.adicionar-area:focus-within {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* O campo de arquivo fica fora da vista, mas continua acessível por teclado. */
+.adicionar-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.adicionar-previa {
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.adicionar-arquivo {
+  margin: -8px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.adicionar-erro {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--status-loan-bg);
+  color: var(--status-loan);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.adicionar-aviso {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--gold);
+}
+
+.adicionar-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
