@@ -21,30 +21,37 @@ def load_east_model(model_path):
     return cv2.dnn.readNet(model_path)
 
 
-def img_reshape(img):
+def img_reshape(img, max_side=1280):
     """
     Redimensiona a imagem para dimensões múltiplas de 32, exigência da rede EAST.
 
     ARGS:
         img: Imagem com os 3 canais padrões do OpenCV (BGR)
+        max_side: Lado máximo da imagem redimensionada (deve ser múltiplo de 32 e pelo menos 32)
 
     RETURNS:
         Tupla contendo:
             - img_reshaped: Imagem redimensionada para múltiplos de 32
-            - H: Altura da imagem redimensionada (usada nos parâmetros de entrada)
-            - W: Largura da imagem redimensionada (usada nos parâmetros de entrada)
+            - rW: Fator de escala da largura (original / redimensionada)
+            - rH: Fator de escala da altura (original / redimensionada)
     """
+
+    if (max_side < 32 or max_side % 32 != 0):
+        raise ValueError(f"max_side deve ser múltiplo de 32 e pelo menos 32; recebido {max_side}")
+
     h, w = img.shape[:2]
 
-    # Garante que as dimensões sejam múltiplas de 32
-    new_h = (h // 32) * 32 
-    new_w = (w // 32) * 32 
+    scale = min(1.0, max_side / max(h, w))
 
-    img_reshaped = cv2.resize(img, (new_w, new_h))
+    new_h = max(32, round((h * scale)/32) * 32)
+    new_w = max(32, round((w * scale)/32) * 32)
+
+    img_reshaped = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
     
-    H, W = img_reshaped.shape[:2]
+    rW = w / new_w
+    rH = h / new_h
 
-    return img_reshaped, H, W
+    return img_reshaped, rW, rH
 
 def blob_from_image(img):
     """
@@ -78,4 +85,3 @@ def east_forward(net, blob):
     
     net.setInput(blob)
     return net.forward(EAST_OUTPUT_LAYERS)
-
