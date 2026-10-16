@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CartaoLivro } from '../components/CartaoLivro'
-import { livros } from '../mocks/livros'
+import { useLivros } from '../estado/LivrosContext'
 import type { StatusLeitura } from '../tipos/livro'
 import './Estante.css'
 
@@ -15,12 +15,12 @@ const FILTROS: { valor: Filtro; rotulo: string }[] = [
   { valor: 'emprestado', rotulo: 'Emprestados' },
 ]
 
-function contar(filtro: Filtro): number {
-  return filtro === 'todos' ? livros.length : livros.filter((livro) => livro.status === filtro).length
-}
-
 export function Estante() {
+  const { livros } = useLivros()
   const [filtro, setFiltro] = useState<Filtro>('todos')
+
+  const contar = (valor: Filtro) =>
+    valor === 'todos' ? livros.length : livros.filter((livro) => livro.status === valor).length
 
   const visiveis = filtro === 'todos' ? livros : livros.filter((livro) => livro.status === filtro)
 

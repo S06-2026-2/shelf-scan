@@ -11,4 +11,18 @@ export interface Livro {
   concluidoEm?: string
   emprestadoPara?: string
   aviso?: string
+  editora?: string
+  ano?: string
+  genero?: string
+  sinopse?: string
+}
+
+// O que o OCR devolve. Só título e autor são esperados; o resto vem do enriquecimento, quando existir.
+export interface LivroReconhecido {
+  titulo: string
+  autor: string
+  editora?: string
+  ano?: string
+  genero?: string
+  sinopse?: string
 }
