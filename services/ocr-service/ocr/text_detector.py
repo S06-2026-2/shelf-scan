@@ -57,9 +57,9 @@ def blob_from_image(img):
         blob: Blob criado a partir da imagem
     """
 
+    h, w = img.shape[:2]
 
-
-    blob = cv2.dnn.blobFromImage(img, 1.0, img.shape[:2], EAST_MEAN, swapRB=True, crop=False)
+    blob = cv2.dnn.blobFromImage(img, 1.0, (w, h), EAST_MEAN, swapRB=True, crop=False)
     return blob
 
 
