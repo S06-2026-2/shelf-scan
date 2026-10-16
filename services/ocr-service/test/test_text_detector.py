@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -144,3 +146,94 @@ class TestEastForward:
         assert scores.min() >= 0
         assert scores.max() <= 1
         assert scores.max() > 0.5
+
+
+def box_center(box):
+    """Centro (x, y) de uma caixa de 4 pontos"""
+    return np.array(box, dtype=np.float32).mean(axis=0)
+
+
+class TestEastTextDetector:
+    """
+        Testes do EastTextDetector (detecção completa: entrada -> lista de regiões)
+    """
+
+    def test_detects_title_and_author(self, sample_image, text_detector):
+        """
+        Critério de pronto do t5: na capa de amostra, o detector encontra
+        pelo menos 2 regiões (título e autor), todas com confiança >= 0,5
+        """
+        regions = text_detector.detect_text(sample_image)
+
+        assert len(regions) >= 2
+        assert all(region["confidence"] >= 0.5 for region in regions)
+
+    def test_region_format_is_json_ready(self, sample_image, text_detector):
+        """
+        Cada região é {"box": [[x, y] x 4], "confidence": float}, com tipos
+        nativos do Python (int e float, não numpy), para a API do t7
+        serializar direto, como as regions do contrato do t1
+        """
+        regions = text_detector.detect_text(sample_image)
+
+        for region in regions:
+            assert set(region) == {"box", "confidence"}
+            assert len(region["box"]) == 4
+            for point in region["box"]:
+                assert len(point) == 2
+                assert all(type(coord) is int for coord in point)
+            assert type(region["confidence"]) is float
+        json.dumps(regions)  # não pode lançar TypeError
+
+    def test_boxes_stay_inside_image(self, sample_image, text_detector):
+        """
+        Quando o texto encosta na borda, o EAST devolve pontos fora da imagem:
+        nesta faixa do título, cortada em cima e embaixo, 4 pontos passam da
+        borda. Eles precisam ser limitados à imagem para o recorte da região
+        (OCR) não falhar.
+        """
+        strip = sample_image[1100:1300, 250:950].copy()
+        h, w = strip.shape[:2]
+
+        regions = text_detector.detect_text(strip)
+
+        assert regions, "a faixa do título deveria ter texto detectado"
+        for region in regions:
+            for x, y in region["box"]:
+                assert 0 <= x < w
+                assert 0 <= y < h
+
+    def test_blank_image_returns_empty_list(self, text_detector):
+        """
+        Sem texto, o detector devolve lista vazia em vez de lançar exceção;
+        quem decide o que fazer (ex.: avisar o usuário) é o pipeline
+        """
+        blank = np.full((600, 400, 3), 255, dtype=np.uint8)
+
+        assert text_detector.detect_text(blank) == []
+
+    def test_boxes_are_in_original_scale(self, sample_image, text_detector):
+        """
+        O detector roda na imagem reduzida pelo img_reshape; as caixas
+        precisam voltar à escala original (x rW, x rH). A referência é o
+        próprio OpenCV reduzindo a imagem original por dentro: cada caixa
+        dele deve ter uma do detector com o centro a poucos pixels. Sem as
+        razões, a distância na amostra passaria de 200 px.
+
+        A referência usa o mesmo modelo do detector (text_detector.model) em
+        vez de carregar outro: cada EAST com os buffers do forward ocupa
+        ~630 MB, e uma cópia extra esgotou a memória no Windows e no Docker.
+        Mexer no setInputParams dele é seguro porque o detect_text
+        reconfigura o tamanho de entrada a cada chamada.
+        """
+        img_redim, _, _ = img_reshape(sample_image)
+        H, W = img_redim.shape[:2]
+        text_detector.model.setInputParams(1.0, (W, H), EAST_MEAN, True)
+        reference_boxes, _ = text_detector.model.detect(sample_image)
+
+        regions = text_detector.detect_text(sample_image)
+
+        centers = [box_center(region["box"]) for region in regions]
+        for ref_box in reference_boxes:
+            distance = min(np.linalg.norm(box_center(ref_box) - c) for c in centers)
+            assert distance < 8

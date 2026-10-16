@@ -3,7 +3,7 @@ import os
 import cv2
 import pytest
 
-from ocr.text_detector import load_east_model
+from ocr.text_detector import EastTextDetector, load_east_model
 
 # Caminho relativo: tests/ -> ocr-service/samples/memorias_subsolo.jpg
 SAMPLE_IMAGE_PATH = os.path.join(
@@ -33,16 +33,36 @@ def sample_image():
     return img
 
 
-@pytest.fixture(scope="module")
-def east_net():
-    """Carrega a rede EAST uma vez por módulo de teste.
-
-    O modelo tem ~96 MB e leva cerca de 1 s para carregar, então recarregar
-    a cada teste deixaria a suíte lenta. O forward não altera a rede, então
-    reaproveitar entre os testes é seguro.
-    """
+@pytest.fixture(scope="session")
+def east_model_path():
+    """Caminho do modelo EAST, conferindo antes se ele foi baixado"""
     assert os.path.exists(EAST_MODEL_PATH), (
         f"Modelo EAST não encontrado em '{EAST_MODEL_PATH}'. "
         "Rode `python scripts/download_east.py` a partir de services/ocr-service/."
     )
-    return load_east_model(EAST_MODEL_PATH)
+    return EAST_MODEL_PATH
+
+
+@pytest.fixture(scope="class")
+def east_net(east_model_path):
+    """Carrega a rede EAST uma vez por classe de teste.
+
+    O modelo tem ~96 MB e leva cerca de 1 s para carregar, então recarregar
+    a cada teste deixaria a suíte lenta. O forward não altera a rede, então
+    reaproveitar entre os testes é seguro. O escopo é de classe (e não de
+    módulo) para a rede, com os buffers do forward, ser liberada ao fim da
+    classe: manter várias cópias do EAST vivas ao mesmo tempo já esgotou a
+    memória do OpenCV no Windows.
+    """
+    return load_east_model(east_model_path)
+
+
+@pytest.fixture(scope="module")
+def text_detector(east_model_path):
+    """Cria o EastTextDetector uma vez por módulo de teste.
+
+    Mesmo motivo do east_net: o construtor carrega o modelo de ~96 MB.
+    O detect_text() não guarda estado entre chamadas que afete o resultado
+    (o tamanho de entrada é reconfigurado a cada imagem).
+    """
+    return EastTextDetector(east_model_path)
