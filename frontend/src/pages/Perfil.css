@@ -1,0 +1,29 @@
+.perfil {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 820px;
+}
+
+.perfil-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.perfil-cabecalho h1 {
+  font-size: 1.4rem;
+}
+
+.perfil-arroba {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.avatar-grande {
+  width: 72px;
+  height: 72px;
+  font-size: 1.35rem;
+  box-shadow: var(--shadow-md);
+}

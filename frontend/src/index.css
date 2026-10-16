@@ -105,3 +105,45 @@ h4 {
   font-weight: 600;
   text-wrap: balance;
 }
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.botao:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.botao:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.botao:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.botao-primario {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.botao-primario:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
