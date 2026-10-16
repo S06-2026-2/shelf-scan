@@ -1,8 +1,11 @@
 package br.com.virabrequim.database_service.domain.node;
 
+import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
@@ -13,14 +16,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.springframework.data.neo4j.core.schema.Relationship.Direction.OUTGOING;
+
 @Node("Livro")
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 public class LivroNode {
     @Id
     @GeneratedValue
-    private long id;
+    private Long id;
 
     private String isbn;
     // private Foto capa;
@@ -32,20 +39,19 @@ public class LivroNode {
     private ZonedDateTime dataDeAdicao;
     private String sinopse;
 
-    @Relationship(type = "HAS_TAG", direction = Relationship.Direction.OUTGOING)
+    @ToString.Exclude
+    @Relationship(type = "HAS_TAG", direction = OUTGOING)
     private Set<TagNode> tags = new HashSet<>();
 
-    @Relationship(type = "WRITTEN_BY", direction = Relationship.Direction.OUTGOING)
+    @ToString.Exclude
+    @Relationship(type = "WRITTEN_BY", direction = OUTGOING)
     private List<AutorNode> autores;
 
-    @Relationship(type = "STORED_IN", direction = Relationship.Direction.OUTGOING)
+    @ToString.Exclude
+    @Relationship(type = "STORED_IN", direction = OUTGOING)
     private EstanteNode estante;
 
-    private boolean emprestado;
-    @Relationship(type = "LENT_TO", direction = Relationship.Direction.OUTGOING)
-    private Set<UsuarioNode> emprestimosAtuais;
-    //TODO: Transformar em relacionamentos mais complexos, como este que será adicionado uma
-    //TODO: propriedade para o relacionamento, como: satus(em andamento, terminado, datas, e possivelmente mais)
-    @Relationship(type = "WAS_LENT_TO", direction = Relationship.Direction.OUTGOING)
-    private List<EmprestimoNode> emprestimos;
+    @ToString.Exclude
+    @Relationship(type = "LENT_TO", direction = OUTGOING)
+    private List<EmprestimoRelationship> emprestimos;
 }
