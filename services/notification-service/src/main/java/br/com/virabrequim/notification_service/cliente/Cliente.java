@@ -11,6 +11,9 @@ public class Cliente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "usuario_id", unique = true)
+    private String usuarioId;
+
     @Column(name = "telegram_chat_id", nullable = false, unique = true)
     private Long telegramChatId;
 
@@ -29,7 +32,8 @@ public class Cliente {
         // construtor exigido pelo JPA
     }
 
-    public Cliente(Long telegramChatId, String nome, String usernameTelegram) {
+    public Cliente(String usuarioId, Long telegramChatId, String nome, String usernameTelegram) {
+        this.usuarioId = usuarioId;
         this.telegramChatId = telegramChatId;
         this.nome = nome;
         this.usernameTelegram = usernameTelegram;
@@ -44,8 +48,16 @@ public class Cliente {
         return id;
     }
 
+    public String getUsuarioId() {
+        return usuarioId;
+    }
+
     public Long getTelegramChatId() {
         return telegramChatId;
+    }
+
+    public void setTelegramChatId(Long telegramChatId) {
+        this.telegramChatId = telegramChatId;
     }
 
     public String getNome() {

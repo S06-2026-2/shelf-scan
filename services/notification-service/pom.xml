@@ -18,6 +18,7 @@
 
     <properties>
         <java.version>21</java.version>
+        <telegrambots.version>10.3.0</telegrambots.version>
     </properties>
 
     <dependencies>
@@ -51,6 +52,18 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- Telegram (long-polling + cliente HTTP; o módulo meta vem transitivo) -->
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-longpolling</artifactId>
+            <version>${telegrambots.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-client</artifactId>
+            <version>${telegrambots.version}</version>
         </dependency>
 
         <!-- DevTools & Utilities -->

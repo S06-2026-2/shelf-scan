@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     Optional<Cliente> findByTelegramChatId(Long telegramChatId);
+
+    Optional<Cliente> findByUsuarioId(String usuarioId);
 }
