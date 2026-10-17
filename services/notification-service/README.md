@@ -128,6 +128,24 @@ O bot só liga se a variável de ambiente `TELEGRAM_BOT_TOKEN` estiver definida 
 
 Quando o usuário toca em "Iniciar" no bot, o `/start <código>` grava o vínculo. Se o código já foi usado ou expirou, o bot pede um novo link.
 
+### API para o database-service (notificações)
+
+Contrato combinado com quem cuida do `database-service` (campos `usuarioId`, `titulo` e `autor`). Ainda não há identificador de evento.
+
+| Método e rota | Corpo | O que faz |
+|---|---|---|
+| `POST /notificacoes/livro-salvo` | `{"usuarioId": "42", "titulo": "Dom Casmurro", "autor": "Machado de Assis"}` (`autor` é opcional) | Avisa o usuário no Telegram que o livro foi salvo |
+
+| Resposta | Significa |
+|---|---|
+| `200` `{"resultado": "ENVIADO"}` | A mensagem foi entregue ao Telegram |
+| `200` `{"resultado": "SEM_VINCULO"}` | O usuário não conectou o Telegram: nada a fazer, **não é erro** |
+| `502` `{"resultado": "FALHA_NO_ENVIO"}` | O Telegram recusou (rede, ou o usuário bloqueou o bot): vale tentar de novo |
+| `503` | Este serviço está sem `TELEGRAM_BOT_TOKEN` |
+| `400` | `usuarioId` ou `titulo` ausentes |
+
+Sem identificador de evento ainda: se o chamador reenviar, o usuário pode receber a mensagem duas vezes.
+
 ### ⚠️ Problema conhecido no Windows: `mvnw spring-boot:run`
 
 Se o caminho do projeto tiver caracteres não-ASCII (acentos, `°`, etc.), o goal `spring-boot:run` do `spring-boot-maven-plugin` falha com:
@@ -150,11 +168,11 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 ## Status
 
 - [x] Cadastro/consulta de cliente por `telegram_chat_id` (JPA + Flyway)
-- [ ] Endpoint para receber o evento "livro salvo" do `database-service`
+- [x] Endpoint para receber o evento "livro salvo" do `database-service` (campos combinados; falta o `eventId`)
 - [x] Integração com a Telegram Bot API (long-polling; `TelegramBotAgent` responde ao `/start`)
 - [x] Vínculo entre o usuário do Shelf Scan e o chat do Telegram (link com código, endpoints para o front e CORS)
 - [ ] Agente conversacional (IA) no chat do bot
-- [ ] Agente formatador de mensagens (`MessageFormatterAgent`)
+- [x] Formatador de mensagens (`MessageFormatterAgent`), por enquanto só template, sem IA
 - [ ] Agente recomendador de livros
 - [ ] Container do próprio serviço no `docker-compose.yml` (hoje só o banco está lá)
 - [ ] CI (`notification-service-ci.yml`)

@@ -40,10 +40,12 @@ public class ClienteService {
         return clienteRepository.save(cliente);
     }
 
+    public Optional<Cliente> buscarConectado(String usuarioId) {
+        return clienteRepository.findByUsuarioId(usuarioId).filter(Cliente::isAtivo);
+    }
+
     public boolean estaConectado(String usuarioId) {
-        return clienteRepository.findByUsuarioId(usuarioId)
-                .filter(Cliente::isAtivo)
-                .isPresent();
+        return buscarConectado(usuarioId).isPresent();
     }
 
     @Transactional
