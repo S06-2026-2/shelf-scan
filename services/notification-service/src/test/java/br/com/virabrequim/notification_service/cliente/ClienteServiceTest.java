@@ -37,10 +37,12 @@ class ClienteServiceTest {
 
     @Test
     void vincular_reconectandoComOutroChat_atualizaSemDuplicar() {
+        long antes = clienteRepository.count();
+
         clienteService.vincular("42", 1001L, "Ana", "ana");
         clienteService.vincular("42", 2002L, "Ana", "ana_nova");
 
-        assertEquals(1, clienteRepository.count());
+        assertEquals(antes + 1, clienteRepository.count());
         Cliente salvo = clienteRepository.findByUsuarioId("42").orElseThrow();
         assertEquals(2002L, salvo.getTelegramChatId());
         assertEquals("ana_nova", salvo.getUsernameTelegram());
@@ -48,12 +50,14 @@ class ClienteServiceTest {
 
     @Test
     void vincular_chatQueJaEraDeOutraConta_passaParaANovaConta() {
+        long antes = clienteRepository.count();
+
         clienteService.vincular("42", 1001L, "Ana", "ana");
         clienteService.vincular("77", 1001L, "Ana", "ana");
 
         assertFalse(clienteService.estaConectado("42"));
         assertTrue(clienteService.estaConectado("77"));
-        assertEquals(1, clienteRepository.count());
+        assertEquals(antes + 1, clienteRepository.count());
     }
 
     @Test
