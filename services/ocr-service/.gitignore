@@ -244,3 +244,9 @@ src/data/cache/
 
 # Modelos baixados por scripts/download_east.py (~96 MB, fora do git)
 models/
+
+# Imagens geradas por scripts/debug_detector.py
+debug/
+
+# Fotos locais para inspeção do detector (a representativa vai para samples/)
+fotos/

@@ -38,6 +38,8 @@ COPY pytest.ini ./
 COPY ocr ./ocr
 COPY test ./test
 COPY samples ./samples
+# Os outros scripts (ex.: debug_detector.py) entram com o código, porque têm teste
+COPY scripts ./scripts
 
 # Usuário não-root; /app continua do root, então o appuser só lê o código
 RUN useradd --system --no-create-home appuser
