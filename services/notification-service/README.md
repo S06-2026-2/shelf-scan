@@ -12,6 +12,31 @@ Responsável por três frentes do Shelf Scan:
 
 ## Como funciona (fluxo pretendido)
 
+### 1. Conectar o Telegram (opcional, escolha do usuário)
+
+Quem não quer receber nada no Telegram simplesmente não existe neste serviço.
+
+```
+usuário (logado no site) pede "Conectar Telegram"
+      │
+      ▼
+front chama o notification-service com o usuarioId
+      │
+      ▼
+notification-service gera um código aleatório de uso único (validade curta)
+e devolve o link https://t.me/<bot>?start=<código>
+      │
+      ▼
+usuário abre o link e toca em "Iniciar" → o bot recebe "/start <código>"
+      │
+      ▼
+notification-service grava usuarioId ↔ chat_id e invalida o código
+```
+
+O `chat_id` é guardado **somente aqui**; o `database-service` conhece apenas o `usuarioId`.
+
+### 2. Notificar quando um livro é salvo
+
 ```
 ocr-service extrai dados do livro
       │
@@ -19,16 +44,24 @@ ocr-service extrai dados do livro
 database-service salva o livro (Neo4j)
       │
       ▼
-database-service avisa o notification-service (REST — contrato ainda em definição)
+database-service avisa o notification-service com o usuarioId (REST)
       │
       ▼
-notification-service busca o Cliente pelo telegram_chat_id
+notification-service procura o vínculo do usuarioId
+(sem vínculo = usuário não quer Telegram → ignora)
       │
       ▼
 Telegram Bot API envia a notificação ao usuário
 ```
 
 O agente recomendador consulta os dados do usuário (gostos + livros salvos) para sugerir novas leituras; o agente conversacional atende o usuário diretamente pelo chat do bot.
+
+## Decisões e pontos a discutir depois
+
+- **Autenticação entre serviços e no front**: adiada. Enquanto isso, como o ID do usuário é sequencial, alguém poderia gerar um código de vínculo para o ID de outra pessoa. Limitação conhecida.
+- **Falha na entrega do evento**: a ideia é um buffer no `database-service` segurando o evento até o `notification-service` responder (e o evento precisará de um identificador para evitar notificação duplicada).
+- **Exclusão de conta**: quando a conta for excluída no `database-service`, o vínculo aqui precisa ser removido. Como o `notification-service` ficará sabendo ainda não foi definido.
+- **Tipo do ID do usuário**: hoje é o ID padrão do Neo4j (`Long`); o plano é migrar para um padrão de mercado (ex.: UUID). Por isso o `usuarioId` é guardado como texto.
 
 ## Estrutura
 
@@ -50,7 +83,8 @@ services/notification-service/
 - **Spring Web**, **Spring Data JPA**, **Spring Validation**, **Actuator**
 - **PostgreSQL** — persistência dos clientes/usuários do Telegram
 - **Flyway** — versionamento do schema
-- Bot do Telegram e stack de IA (Spring AI/LangChain4j): ainda a definir
+- **Telegram** — `telegrambots-longpolling` + `telegrambots-client` (long-polling, sem webhook)
+- Agentes de IA: chamada HTTP direta aos provedores de LLM (ainda a implementar)
 
 ## Setup do ambiente
 
@@ -68,6 +102,31 @@ java -jar target/notification-service-0.0.1-SNAPSHOT.jar
 ```
 
 O serviço sobe em `http://localhost:8341`. O Postgres fica exposto em `localhost:8342` (`shelf_scan_cliente` / `notification_user` / `notification_pass`, ver [docker-compose.yml](../../docker-compose.yml)).
+
+### Bot do Telegram
+
+O bot se chama **Christopher** (nome escolhido pelo grupo). Ele se apresenta com esse nome na mensagem de boas-vindas (constante `NOME_DO_BOT` em `TelegramBotAgent`) e é o nome que o agente conversacional deve usar. Ao criar o bot no @BotFather, use "Christopher" como nome de exibição; o username é outra coisa: precisa ser único e terminar em `bot`.
+
+O bot só liga se a variável de ambiente `TELEGRAM_BOT_TOKEN` estiver definida na janela do terminal em que o serviço sobe. Sem ela, o serviço funciona normalmente e loga `bot do Telegram desativado`.
+
+- Cada integrante usa o **próprio bot** de teste: crie um com o [@BotFather](https://t.me/BotFather) (`/newbot`). Dois processos com o mesmo token disputam as mensagens (erro 409).
+- Guarde o token num arquivo `.env` na raiz do repo (já ignorado pelo Git) e nunca o commite. O Spring Boot não lê `.env` sozinho: carregue as variáveis no terminal antes de rodar o `java -jar`.
+
+| Variável | Para quê | Padrão |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | Liga o bot (long-polling). Sem ela o bot fica desativado. | vazio |
+| `TELEGRAM_BOT_USERNAME` | Monta o link `https://t.me/<username>?start=<código>`. Sem ela, gerar link responde 503. | vazio |
+| `CORS_ORIGENS_PERMITIDAS` | Origens do front autorizadas a chamar `/telegram/**` (várias separadas por vírgula). | `http://localhost:5173` |
+
+### API para o front (conectar o Telegram)
+
+| Método e rota | O que faz | Resposta |
+|---|---|---|
+| `POST /telegram/vinculos` com `{"usuarioId": "42"}` | Gera um link de conexão (código de uso único, válido por 15 min) | `201` `{"link": "https://t.me/<bot>?start=<código>"}` |
+| `GET /telegram/vinculos/{usuarioId}` | Informa se o Telegram está conectado | `200` `{"conectado": true}` |
+| `DELETE /telegram/vinculos/{usuarioId}` | Desconecta (pode ser repetido sem erro) | `204` |
+
+Quando o usuário toca em "Iniciar" no bot, o `/start <código>` grava o vínculo. Se o código já foi usado ou expirou, o bot pede um novo link.
 
 ### ⚠️ Problema conhecido no Windows: `mvnw spring-boot:run`
 
@@ -92,8 +151,9 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 
 - [x] Cadastro/consulta de cliente por `telegram_chat_id` (JPA + Flyway)
 - [ ] Endpoint para receber o evento "livro salvo" do `database-service`
-- [ ] Integração com a Telegram Bot API (webhook ou polling)
-- [ ] Agente conversacional (`TelegramBotAgent`)
+- [x] Integração com a Telegram Bot API (long-polling; `TelegramBotAgent` responde ao `/start`)
+- [x] Vínculo entre o usuário do Shelf Scan e o chat do Telegram (link com código, endpoints para o front e CORS)
+- [ ] Agente conversacional (IA) no chat do bot
 - [ ] Agente formatador de mensagens (`MessageFormatterAgent`)
 - [ ] Agente recomendador de livros
 - [ ] Container do próprio serviço no `docker-compose.yml` (hoje só o banco está lá)
