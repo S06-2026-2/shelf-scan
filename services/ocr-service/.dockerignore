@@ -13,3 +13,7 @@ venv/
 
 # Modelos baixados (~96 MB); como entram na imagem se decide no t3
 models/
+
+# Saídas do debug_detector.py e fotos locais: só para inspeção, fora da imagem
+debug/
+fotos/
