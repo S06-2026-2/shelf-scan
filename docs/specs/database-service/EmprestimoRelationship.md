@@ -23,6 +23,23 @@ A classe tem duas formas de ser criada:
 
 As datas não podem ser alteradas livremente por setter. A devolução só acontece por `registrarDevolucao(data, hoje)`.
 
+## API esperada
+
+Assinaturas que a classe deve ter. Os testes usam estas formas; o que ainda não existe no código fica sem teste
+até ser criado (pode começar como stub com `throw new UnsupportedOperationException()`).
+
+| Assinatura | Para quê | Regras |
+| --- | --- | --- |
+| `EmprestimoRelationship(UsuarioNode usuario, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao)` | Criação pelo sistema, com validação | R1–R4 |
+| `@PersistenceCreator EmprestimoRelationship(Long id, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao, LocalDate dataDevolucao, UsuarioNode usuario)` | Usado pelo Spring Data Neo4j ao carregar do banco, **sem validação** (pode ter visibilidade de pacote) | R14 |
+| `void registrarDevolucao(LocalDate dataDevolucao, LocalDate hoje)` | Encerra o empréstimo | R5–R7 |
+| `boolean isEmprestado()` / `boolean isDevolvido()` | Estado do empréstimo | R4, R5 |
+| `int diasParaVencimento(LocalDate hoje)` | Dias até a data prevista | R8, R9, R14 |
+| `boolean isVencido(LocalDate hoje)` | Se está vencido | R10, R11, R14 |
+| `boolean estaVencendo(LocalDate hoje)` | Se está vencendo | R12, R13, R14 |
+
+As datas não têm setter público.
+
 ## Regras
 
 **Criação**
@@ -166,6 +183,7 @@ Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escr
 - Empréstimo sem data prevista de devolução ("devolve quando puder"). Por enquanto a data é obrigatória.
   O grupo decide no futuro se isso vai existir.
 - Empréstimo por horas (prazo menor que 1 dia).
+- Validação do usuário no construtor (ex.: usuário `null`). Por enquanto a spec só valida as datas.
 - Estado de um empréstimo agendado antes de começar (se conta como emprestado, se existe um estado "agendado",
   e se pode ser agendado enquanto o livro está com outra pessoa). Por enquanto a spec só garante que ele pode
   ser criado e que não pode ser devolvido antes de começar.
