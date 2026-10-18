@@ -36,8 +36,8 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
   `classe: <FQN>`.
 - Todos os comandos Maven rodam dentro de `services/database-service` com `sh mvnw` (o `mvnw` não tem permissão de
   execução). O diretório do Bash volta para a raiz do repositório depois de cada comando, então junte o `cd` e o
-  Maven no mesmo comando: `cd services/database-service && sh mvnw ...`. Se o `JAVA_HOME` atual não tiver `javac` e existir `~/.jdks/corretto-21.0.10`, use
-  `JAVA_HOME=~/.jdks/corretto-21.0.10 sh mvnw ...`.
+  Maven no mesmo comando: `cd services/database-service && sh mvnw ...`. O `JAVA_HOME` já vem configurado: não
+  defina nem procure outro JDK.
 
 ## Regras
 
@@ -68,6 +68,9 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
     - se não conseguir calcular o esperado sem adivinhar, não gere: registre a ambiguidade no relatório;
     - não repita um caso que um Exemplo ou outro teste já cobre (mesma classe de equivalência e mesmo limite);
     - não use derivados para "cobrir linhas" do código.
+11. **Fora do escopo não se testa.** Nada que a seção "Fora do escopo" da spec lista vira teste ou assert, nem
+    como derivado (ex.: o estado de um empréstimo agendado antes de começar). Num teste de Exemplo, verifique só o
+    que o **Então** diz: não acrescente asserts sobre outros comportamentos.
 
 ## Convenções dos testes
 
@@ -82,11 +85,14 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
   (`name = "{0}: ..."`).
 - Exceções: `assertThrows(TipoDaExcecao.class, () -> ...)`. Só verifique a mensagem quando a spec definir a
   mensagem.
+- Quando um Exemplo verifica mais de um método ou valor, agrupe os asserts em `assertAll(...)`, para que uma falha
+  não esconda as outras (e o relatório mostre todas).
 - Datas sempre fixas (`LocalDate.of(2026, 3, 10)`), nunca `LocalDate.now()`. Se a classe receber `hoje` por
   parâmetro, passe a data do exemplo.
 - Testes unitários puros: sem Spring (`@SpringBootTest`), sem banco, sem Testcontainers.
-- Para montar o objeto, use a forma que a spec indicar. Se ela ainda não existir no código, use a API pública que
-  existe (construtor, setters) e registre no relatório que o teste depende dela.
+- Para montar o objeto e saber quais métodos devem existir, use a seção **"API esperada"** da spec, se houver.
+  Se a forma indicada ainda não existir no código, use a API que existe (construtor, setters) e registre no
+  relatório que o teste depende dela.
 - Comentários só quando o motivo não for óbvio. Português nos nomes de exibição.
 
 ## Procedimento
