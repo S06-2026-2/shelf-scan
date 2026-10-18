@@ -8,10 +8,14 @@ import logging
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from api.schemas import ExtractionResponse
+from ocr.pipeline import run_pipeline
 from ocr.text_detector import EastTextDetector
 
 logger = logging.getLogger(__name__)
@@ -73,3 +77,17 @@ def health():
     if status != "ready":
         return JSONResponse(status_code=503, content={"status": status})
     return {"status": "ready"}
+
+
+@app.post("/v1/extraction", response_model=ExtractionResponse)
+async def extraction(image: Annotated[UploadFile, File(description="Foto da capa ou da lombada (JPEG ou PNG)")]):
+    """Lê a foto enviada no campo multipart "image" e devolve os livros encontrados
+
+    RETURNS:
+        Resposta do contrato (books, raw_text, result, meta)
+    """
+    img_bytes = await image.read()
+
+    # O pipeline bloqueia por alguns segundos (CPU e Tesseract): roda numa thread
+    # para o servidor continuar respondendo /live e /health enquanto isso
+    return await run_in_threadpool(run_pipeline, img_bytes, app.state.detector)
