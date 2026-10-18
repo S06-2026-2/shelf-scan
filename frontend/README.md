@@ -78,9 +78,7 @@ Suba o front (`npm run dev`) e confira:
 
 ### Cartão "Avisos no Telegram"
 
-Ele fala com o `notification-service`, então precisa dele no ar (porta 8341) e com os endpoints de vínculo (`/telegram/vinculos`).
-
-> **Temporário:** esses endpoints, o bot e o passo a passo para subi-los (no `services/notification-service/README.md`) estão na branch `feat-telegram` e ainda não chegaram ao `dev`. Enquanto isso, ou o serviço roda a partir dessa branch, ou o cartão mostra o erro descrito abaixo. Remover este aviso quando o PR for mergeado.
+Ele fala com o `notification-service`, então precisa dele no ar (porta 8341) e com os endpoints de vínculo (`/telegram/vinculos`). O passo a passo para subir o serviço e o bot está em `services/notification-service/README.md`.
 
 - **Com o serviço no ar:** o cartão mostra se o usuário está conectado. "Conectar Telegram" gera o link, abre o Telegram e a página confere a conexão sozinha a cada 3 segundos.
 - **Sem o serviço:** o cartão mostra uma mensagem de erro e "Tentar de novo". É o comportamento esperado.
