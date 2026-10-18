@@ -35,7 +35,8 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
 - Specs: `docs/specs/database-service/*.md` (na raiz do repositório). A primeira linha de cada spec é
   `classe: <FQN>`.
 - Todos os comandos Maven rodam dentro de `services/database-service` com `sh mvnw` (o `mvnw` não tem permissão de
-  execução). Se o `JAVA_HOME` atual não tiver `javac` e existir `~/.jdks/corretto-21.0.10`, use
+  execução). O diretório do Bash volta para a raiz do repositório depois de cada comando, então junte o `cd` e o
+  Maven no mesmo comando: `cd services/database-service && sh mvnw ...`. Se o `JAVA_HOME` atual não tiver `javac` e existir `~/.jdks/corretto-21.0.10`, use
   `JAVA_HOME=~/.jdks/corretto-21.0.10 sh mvnw ...`.
 
 ## Regras
