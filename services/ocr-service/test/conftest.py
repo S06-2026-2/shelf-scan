@@ -1,9 +1,14 @@
 import os
 
-import cv2
-import pytest
+# O OpenCV lê o limite de pixels no import do cv2: precisa ser definido antes
+# dele. No container o Dockerfile já define o mesmo valor; aqui vale para a
+# suíte rodando fora dele.
+os.environ.setdefault("OPENCV_IO_MAX_IMAGE_PIXELS", "55000000")
 
-from ocr.text_detector import EastTextDetector, load_east_model
+import cv2  # noqa: E402
+import pytest  # noqa: E402
+
+from ocr.text_detector import EastTextDetector, load_east_model  # noqa: E402
 
 # Caminho relativo: tests/ -> ocr-service/samples/memorias_subsolo.jpg
 SAMPLE_IMAGE_PATH = os.path.join(

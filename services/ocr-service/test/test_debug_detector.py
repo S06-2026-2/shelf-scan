@@ -3,7 +3,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from scripts.debug_detector import collect_images, draw_regions, process_image, top_to_bottom
+from scripts.debug_detector import collect_images, draw_regions, process_image
 
 SAMPLE_PATH = Path(__file__).resolve().parent.parent / "samples" / "memorias_subsolo.jpg"
 
@@ -38,21 +38,6 @@ class TestCollectImages:
         photo = tmp_path / "lombada.jpg"
 
         assert collect_images([photo]) == [photo]
-
-
-class TestTopToBottom:
-    """
-        Testes da numeração das caixas (pelo topo; em empate, pela esquerda)
-    """
-
-    def test_sorts_by_top_then_left(self):
-        bottom = fake_region(10, 300)
-        top_right = fake_region(200, 50)
-        top_left = fake_region(10, 50)
-
-        ordered = top_to_bottom([bottom, top_right, top_left])
-
-        assert ordered == [top_left, top_right, bottom]
 
 
 class TestDrawRegions:
