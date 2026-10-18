@@ -30,6 +30,8 @@
 		<java.version>21</java.version>
 		<!-- Classes mutadas pelo PIT; sobrescrever com -Dpit.targetClasses=... -->
 		<pit.targetClasses>br.com.virabrequim.database_service.domain.*</pit.targetClasses>
+		<!-- true: o PIT ignora testes que falham sem mutação (usado pelo agente; testes TDD ainda vermelhos) -->
+		<pit.skipFailingTests>false</pit.skipFailingTests>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -187,6 +189,7 @@
 						<param>XML</param>
 					</outputFormats>
 					<timestampedReports>false</timestampedReports>
+					<skipFailingTests>${pit.skipFailingTests}</skipFailingTests>
 				</configuration>
 			</plugin>
 		</plugins>
