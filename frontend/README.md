@@ -54,7 +54,9 @@ Copie `.env.example` para `.env.local` e ajuste (o `.env.local` não vai para o 
 | `VITE_NOTIFICATION_API_URL` | Endereço do `notification-service` | `http://localhost:8341` |
 | `VITE_OCR_API_URL` | Endereço do `ocr-service`. Vazia = modo demonstração | vazia |
 
-Contrato proposto para o OCR (ainda a combinar com quem cuida do serviço): `POST {VITE_OCR_API_URL}/reconhecer`, multipart com o campo `imagem`; resposta JSON `{ titulo, autor, editora?, ano?, genero?, sinopse? }`.
+**Contrato do OCR:** `services/ocr-service/docs/contrato-api.md` (ainda um esqueleto, com vários `TODO`). O front chama `POST {VITE_OCR_API_URL}/v1/extraction` (multipart com a foto; o nome do campo, hoje `file`, ainda é `TODO` no contrato) e converte a resposta, que é uma lista de livros `{nome, volume, autores, editora}` mais o texto bruto e um indicador (`estruturado`, `não estruturado` ou `nenhum texto`). Essa conversão fica em `src/api/ocrContrato.ts`: quando os nomes definitivos forem fechados, só esse arquivo e o campo `CAMPO_DA_FOTO` em `src/api/ocr.ts` mudam.
+
+Enquanto o agente que estrutura o texto não existir, o OCR real devolve só o **texto bruto**; nesse caso a tela de confirmação mostra o texto lido e pede para preencher título e autor. Ano, gênero e sinopse não vêm do OCR (o enriquecimento é do `database-service`) e ficam para preencher à mão.
 
 ## Como testar
 
@@ -78,9 +80,7 @@ Suba o front (`npm run dev`) e confira:
 
 ### Cartão "Avisos no Telegram"
 
-Ele fala com o `notification-service`, então precisa dele no ar (porta 8341) e com os endpoints de vínculo (`/telegram/vinculos`).
-
-> **Temporário:** esses endpoints, o bot e o passo a passo para subi-los (no `services/notification-service/README.md`) estão na branch `feat-telegram` e ainda não chegaram ao `dev`. Enquanto isso, ou o serviço roda a partir dessa branch, ou o cartão mostra o erro descrito abaixo. Remover este aviso quando o PR for mergeado.
+Ele fala com o `notification-service`, então precisa dele no ar (porta 8341) e com os endpoints de vínculo (`/telegram/vinculos`). O passo a passo para subir o serviço e o bot está em `services/notification-service/README.md`.
 
 - **Com o serviço no ar:** o cartão mostra se o usuário está conectado. "Conectar Telegram" gera o link, abre o Telegram e a página confere a conexão sozinha a cada 3 segundos.
 - **Sem o serviço:** o cartão mostra uma mensagem de erro e "Tentar de novo". É o comportamento esperado.
@@ -92,7 +92,7 @@ Ele fala com o `notification-service`, então precisa dele no ar (porta 8341) e 
 frontend/
 ├── public/            # favicon e logo (SVG)
 ├── src/
-│   ├── api/           # chamadas aos backends (telegram.ts, ocr.ts)
+│   ├── api/           # chamadas aos backends (telegram.ts, ocr.ts) e a conversão do contrato do OCR (ocrContrato.ts)
 │   ├── components/    # peças reutilizáveis (Layout, Logo, CapaLivro, CartaoLivro...)
 │   ├── estado/        # estado compartilhado da estante (LivrosProvider)
 │   ├── mocks/         # dados de exemplo enquanto não há API
