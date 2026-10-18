@@ -24,6 +24,7 @@ import numpy as np
 SERVICE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SERVICE_DIR))
 
+from ocr.regions import top_to_bottom  # noqa: E402
 from ocr.text_detector import EastTextDetector  # noqa: E402
 
 EAST_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
@@ -53,25 +54,6 @@ def collect_images(paths):
         else:
             images.append(path)
     return images
-
-
-def top_to_bottom(regions):
-    """Ordena as regiões pelo topo da caixa; em empate, pela esquerda
-
-    Serve só para numerar as caixas de forma estável na imagem de debug.
-    Agrupar por linha (ordem de leitura) é trabalho do pipeline.
-
-    ARGS:
-        regions: Lista de regiões devolvida pelo detect_text
-
-    RETURNS:
-        Nova lista ordenada por (y mínimo, x mínimo) de cada caixa
-    """
-    def top_left(region):
-        box = np.array(region["box"])
-        return (box[:, 1].min(), box[:, 0].min())
-
-    return sorted(regions, key=top_left)
 
 
 def draw_regions(img, regions):
