@@ -11,18 +11,18 @@ export interface Livro {
   concluidoEm?: string
   emprestadoPara?: string
   aviso?: string
+  volume?: string
   editora?: string
   ano?: string
   genero?: string
   sinopse?: string
 }
 
-// O que o OCR devolve. Só título e autor são esperados; o resto vem do enriquecimento, quando existir.
+// O que o OCR identifica na foto (contrato do ocr-service). Ano, gênero e sinopse não vêm daqui:
+// o enriquecimento é do database-service.
 export interface LivroReconhecido {
   titulo: string
   autor: string
+  volume?: string
   editora?: string
-  ano?: string
-  genero?: string
-  sinopse?: string
 }
