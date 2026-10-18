@@ -64,8 +64,8 @@ export function AdicionarLivro() {
     setErro(null)
     try {
       const imagem = await reduzirImagem(arquivo)
-      const reconhecido = await reconhecerLivro(imagem)
-      navegar('/estante/adicionar/confirmar', { state: { reconhecido, imagem } })
+      const leitura = await reconhecerLivro(imagem)
+      navegar('/estante/adicionar/confirmar', { state: { leitura, imagem } })
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : 'Algo deu errado.')
     } finally {

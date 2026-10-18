@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import type { EstadoDaLeitura, LeituraDaFoto } from '../api/ocrContrato'
 import { Passos } from '../components/Passos'
 import { useLivros } from '../estado/LivrosContext'
-import type { Livro, LivroReconhecido, StatusLeitura } from '../tipos/livro'
+import type { Livro, StatusLeitura } from '../tipos/livro'
 import './ConfirmarLivro.css'
 
 interface EstadoConfirmacao {
-  reconhecido: LivroReconhecido
+  leitura: LeituraDaFoto
   imagem: Blob
 }
 
@@ -20,11 +21,23 @@ const STATUS: { valor: StatusEscolhivel; rotulo: string }[] = [
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
+const SELOS: Record<EstadoDaLeitura, string> = {
+  estruturado: 'Reconhecido via OCR',
+  'nao-estruturado': 'Texto lido, sem separar os campos',
+  'nenhum-texto': 'Nenhum texto encontrado',
+}
+
+const AVISOS: Partial<Record<EstadoDaLeitura, string>> = {
+  'nao-estruturado':
+    'Li o texto da foto, mas não consegui separar título e autor. Confira o texto abaixo e preencha os campos.',
+  'nenhum-texto': 'Não encontrei texto nessa foto. Preencha os dados à mão ou tire outra foto.',
+}
+
 // A tela só faz sentido vindo da captura; se alguém abrir direto o endereço, volta para lá.
 function lerEstado(estado: unknown): EstadoConfirmacao | null {
   if (typeof estado !== 'object' || estado === null) return null
-  const { reconhecido, imagem } = estado as Partial<EstadoConfirmacao>
-  return reconhecido && imagem instanceof Blob ? { reconhecido, imagem } : null
+  const { leitura, imagem } = estado as Partial<EstadoConfirmacao>
+  return leitura && imagem instanceof Blob ? { leitura, imagem } : null
 }
 
 function corDoTitulo(titulo: string): number {
@@ -47,20 +60,23 @@ export function ConfirmarLivro() {
   if (!estado) {
     return <Navigate to="/estante/adicionar" replace />
   }
-  return <Formulario reconhecido={estado.reconhecido} imagem={estado.imagem} />
+  return <Formulario leitura={estado.leitura} imagem={estado.imagem} />
 }
 
-function Formulario({ reconhecido, imagem }: EstadoConfirmacao) {
+function Formulario({ leitura, imagem }: EstadoConfirmacao) {
   const navegar = useNavigate()
   const { adicionarLivro } = useLivros()
+  const { livro: reconhecido, textoBruto, estado } = leitura
 
   const [previa, setPrevia] = useState<string | null>(null)
   const [titulo, setTitulo] = useState(reconhecido.titulo)
   const [autor, setAutor] = useState(reconhecido.autor)
   const [editora, setEditora] = useState(reconhecido.editora ?? '')
-  const [ano, setAno] = useState(reconhecido.ano ?? '')
-  const [genero, setGenero] = useState(reconhecido.genero ?? '')
-  const [sinopse, setSinopse] = useState(reconhecido.sinopse ?? '')
+  const [volume, setVolume] = useState(reconhecido.volume ?? '')
+  // Ano, gênero e sinopse não vêm do OCR (o enriquecimento é do database-service): ficam à mão.
+  const [ano, setAno] = useState('')
+  const [genero, setGenero] = useState('')
+  const [sinopse, setSinopse] = useState('')
   const [status, setStatus] = useState<StatusEscolhivel>('quero-ler')
   const [erro, setErro] = useState<string | null>(null)
 
@@ -87,6 +103,7 @@ function Formulario({ reconhecido, imagem }: EstadoConfirmacao) {
       cor: corDoTitulo(titulo),
       progresso: status === 'lendo' ? 0 : undefined,
       concluidoEm: status === 'lido' ? mesEAnoAtual() : undefined,
+      volume: opcional(volume),
       editora: opcional(editora),
       ano: opcional(ano),
       genero: opcional(genero),
@@ -95,6 +112,8 @@ function Formulario({ reconhecido, imagem }: EstadoConfirmacao) {
     adicionarLivro(livro)
     navegar('/estante')
   }
+
+  const aviso = AVISOS[estado]
 
   return (
     <div className="confirmar">
@@ -108,19 +127,34 @@ function Formulario({ reconhecido, imagem }: EstadoConfirmacao) {
       <form className="confirmar-grade" onSubmit={salvar}>
         <div className="confirmar-foto">
           {previa && <img src={previa} alt="Foto enviada do livro" />}
-          <span className="confirmar-selo">Reconhecido via OCR</span>
+          <span className={estado === 'estruturado' ? 'confirmar-selo' : 'confirmar-selo atencao'}>
+            {SELOS[estado]}
+          </span>
           <Link to="/estante/adicionar" className="confirmar-refazer">
             Tirar outra foto
           </Link>
         </div>
 
         <div className="confirmar-campos">
+          {aviso && (
+            <p className="confirmar-aviso campo-largo" role="status">
+              {aviso}
+            </p>
+          )}
+
+          {textoBruto !== '' && (
+            <details className="confirmar-texto-bruto campo-largo" open={estado === 'nao-estruturado'}>
+              <summary>Texto lido na foto</summary>
+              <pre>{textoBruto}</pre>
+            </details>
+          )}
+
           <div className="campo campo-largo">
             <label htmlFor="titulo">Título</label>
             <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           </div>
           <div className="campo">
-            <label htmlFor="autor">Autor</label>
+            <label htmlFor="autor">Autor(es)</label>
             <input id="autor" value={autor} onChange={(e) => setAutor(e.target.value)} />
           </div>
           <div className="campo">
@@ -128,10 +162,14 @@ function Formulario({ reconhecido, imagem }: EstadoConfirmacao) {
             <input id="editora" value={editora} onChange={(e) => setEditora(e.target.value)} />
           </div>
           <div className="campo">
+            <label htmlFor="volume">Volume</label>
+            <input id="volume" value={volume} onChange={(e) => setVolume(e.target.value)} />
+          </div>
+          <div className="campo">
             <label htmlFor="ano">Ano</label>
             <input id="ano" inputMode="numeric" value={ano} onChange={(e) => setAno(e.target.value)} />
           </div>
-          <div className="campo">
+          <div className="campo campo-largo">
             <label htmlFor="genero">Gênero</label>
             <input id="genero" value={genero} onChange={(e) => setGenero(e.target.value)} />
           </div>
