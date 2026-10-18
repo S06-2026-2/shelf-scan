@@ -1,5 +1,3 @@
-import pytest
-
 from ocr.text_extractor import ocr_image
 
 
@@ -27,31 +25,19 @@ class TestOcrImage:
         result = ocr_image(sample_image)
         assert result.strip() != ""
 
-    # mark.xfail é usado para marcar testes que devem falhar, mas não devem quebrar a suite de testes
-    @pytest.mark.xfail(
-        reason=(
-            "ocr_image usa lang='eng' fixo, mas o texto da capa de amostra "
-            "é em português (Dostoiévski / Memórias do Subsolo). Acentos e "
-            "caracteres específicos do português tendem a ser reconhecidos "
-            "errado com o modelo de idioma inglês. Remover este marcador "
-            "quando lang for parametrizado ou trocado para 'por'/'por+eng'."
-            "ainda não foi feita uma separação de ROI para capas poluídas,"
-            "então o OCR pode falhar em extrair os textos corretos, mesmo"
-            "que o idioma esteja correto. Remover este marcador quando a"
-            "separação de ROI for implementada (com sucesso de preferência)."
-        )
-    )
-
     def test_extracts_author_name_correctly(self, sample_image):
-        """Teste para verificar se o OCR consegue extrair o nome do autor da capa do livro"""
+        """
+        Teste para verificar se o OCR consegue extrair o nome do autor da capa do livro.
+        A capa escreve tudo em maiúsculas (DOSTOIÉVSKI), por isso a comparação
+        ignora maiúsculas e minúsculas
+        """
         result = ocr_image(sample_image)
-        assert "Dostoi" in result
-
-    @pytest.mark.xfail(
-        reason="Mesmo motivo: dependência do idioma e falta de separação de ROI."
-    )
+        assert "DOSTOI" in result.upper()
 
     def test_extracts_title_correctly(self, sample_image):
-        """Teste para verificar se o OCR consegue extrair o título da capa do livro"""
+        """
+        Teste para verificar se o OCR consegue extrair o título da capa do livro.
+        Mesmo motivo da comparação em maiúsculas (MEMÓRIAS DO SUBSOLO)
+        """
         result = ocr_image(sample_image)
-        assert "Subsolo" in result
+        assert "SUBSOLO" in result.upper()
