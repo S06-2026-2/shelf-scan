@@ -1,10 +1,26 @@
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app, load_detector
+
+SAMPLE_PATH = Path(__file__).resolve().parent.parent / "samples" / "memorias_subsolo.jpg"
+EMPTY_BOOK = {"nome": None, "volume": None, "autores": None, "editora": None}
+
+
+class DetectorWithoutRegions:
+    """Detector falso que nunca acha caixas: força o fallback, rápido e previsível"""
+
+    def detect_text(self, img):
+        return []
+
+
+def upload(client, data, filename="capa.jpg", content_type="image/jpeg"):
+    """Envia os bytes no campo multipart "image", como o front fará com FormData"""
+    return client.post("/v1/extraction", files={"image": (filename, data, content_type)})
 
 
 @pytest.fixture
@@ -88,3 +104,38 @@ class TestModelLoading:
         finally:
             # Libera os ~630 MB do modelo para os próximos módulos de teste
             set_model_status("loading")
+
+
+class TestExtraction:
+    """
+        POST /v1/extraction: o caminho feliz (os erros ficam na etapa C3)
+    """
+
+    def test_returns_contract_fields(self, client):
+        set_model_status("ready", detector=DetectorWithoutRegions())
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert set(body) == {"books", "raw_text", "result", "meta"}
+        assert body["books"] == [EMPTY_BOOK]
+        assert body["result"] == "unstructured"
+        assert body["meta"]["detector"] == "fallback"
+
+    def test_reads_cover_with_east(self, client, text_detector):
+        """De ponta a ponta: upload → EAST → OCR por região → JSON"""
+        set_model_status("ready", detector=text_detector)
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 200
+        assert response.json()["meta"]["detector"] == "east"
+        assert "BORIS" in response.json()["raw_text"].upper()
+
+    def test_route_is_documented(self, client):
+        """O /docs mostra a rota e o formato da resposta para o front e o bot"""
+        openapi = client.get("/openapi.json").json()
+
+        assert "/v1/extraction" in openapi["paths"]
+        assert "ExtractionResponse" in openapi["components"]["schemas"]
