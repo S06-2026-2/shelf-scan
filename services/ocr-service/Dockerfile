@@ -10,10 +10,12 @@ FROM python:3.13-slim-trixie
 # PYTHONUNBUFFERED: a saída aparece na hora no terminal / docker logs
 # PIP_NO_CACHE_DIR: não guarda o cache do pip dentro da imagem
 # PIP_ROOT_USER_ACTION: silencia o aviso de pip como root (esperado no build)
+# OPENCV_IO_MAX_IMAGE_PIXELS: 50 MP + 10% de folga; o padrão (2^30 pixels) não protege o container
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_ROOT_USER_ACTION=ignore
+    PIP_ROOT_USER_ACTION=ignore \
+    OPENCV_IO_MAX_IMAGE_PIXELS=55000000
 
 # Binário do Tesseract + dados de idioma (por e eng (portugues e ingles): o código usa os dois)
 RUN apt-get update \
