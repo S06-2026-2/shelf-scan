@@ -13,6 +13,8 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Liga o bot ao Telegram quando a aplicação termina de subir.
@@ -26,15 +28,19 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
     private final String token;
     private final Optional<TelegramClient> telegramClient;
     private final ConexaoTelegramService conexaoTelegramService;
+    private final AgenteConversacional agenteConversacional;
+    private final ExecutorService conversas = Executors.newVirtualThreadPerTaskExecutor();
     private TelegramBotsLongPollingApplication longPollingApplication;
 
     public TelegramBotRegistrar(
             @Value("${telegram.bot.token:}") String token,
             Optional<TelegramClient> telegramClient,
-            ConexaoTelegramService conexaoTelegramService) {
+            ConexaoTelegramService conexaoTelegramService,
+            AgenteConversacional agenteConversacional) {
         this.token = token;
         this.telegramClient = telegramClient;
         this.conexaoTelegramService = conexaoTelegramService;
+        this.agenteConversacional = agenteConversacional;
     }
 
     @Override
@@ -46,7 +52,8 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
 
         try {
             longPollingApplication = new TelegramBotsLongPollingApplication();
-            TelegramBotAgent agente = new TelegramBotAgent(telegramClient.get(), conexaoTelegramService);
+            TelegramBotAgent agente = new TelegramBotAgent(
+                    telegramClient.get(), conexaoTelegramService, agenteConversacional, conversas);
             longPollingApplication.registerBot(token, agente);
             log.info("Bot do Telegram registrado e escutando mensagens (long-polling).");
         } catch (TelegramApiException e) {
@@ -56,6 +63,7 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
 
     @Override
     public void destroy() throws Exception {
+        conversas.shutdownNow();
         if (longPollingApplication != null) {
             longPollingApplication.close();
         }
