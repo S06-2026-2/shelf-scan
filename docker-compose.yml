@@ -53,6 +53,30 @@ services:
       - "8342:5432" # Host (8341)
     volumes:
       - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d shelf_scan_cliente"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: shelfscan-notification-service
+    restart: unless-stopped
+    ports:
+      - "8341:8341"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/shelf_scan_cliente
+      SPRING_DATASOURCE_USERNAME: notification_user
+      SPRING_DATASOURCE_PASSWORD: notification_pass
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      CORS_ORIGENS_PERMITIDAS: ${CORS_ORIGENS_PERMITIDAS:-http://localhost:5173}
+    depends_on:
+      notification-db:
+        condition: service_healthy
 
 volumes:
   notification_db_data:

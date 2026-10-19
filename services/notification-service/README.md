@@ -74,6 +74,7 @@ services/notification-service/
 │   ├── application.yml
 │   └── db/migration/   # Migrations Flyway
 ├── pom.xml
+├── .dockerignore
 └── Dockerfile
 ```
 
@@ -102,6 +103,19 @@ java -jar target/notification-service-0.0.1-SNAPSHOT.jar
 ```
 
 O serviço sobe em `http://localhost:8341`. O Postgres fica exposto em `localhost:8342` (`shelf_scan_cliente` / `notification_user` / `notification_pass`, ver [docker-compose.yml](../../docker-compose.yml)).
+
+### Subir tudo pelo Docker
+
+Alternativa ao `java -jar`: o compose sobe o banco e o próprio serviço.
+
+```bash
+docker compose up -d --build notification-service
+```
+
+O serviço fica em `http://localhost:8341` e conversa com o banco pela rede interna do compose. O compose lê `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `CORS_ORIGENS_PERMITIDAS` do terminal ou do `.env` na raiz do repo; sem token, o bot fica desativado. Para parar: `docker compose stop notification-service`.
+
+- Não rode o container e o `java -jar` ao mesmo tempo: os dois brigam pela porta 8341 e, com token, pelo bot (erro 409).
+- Depois de mudar o código, rode o comando de novo (o `--build` refaz a imagem).
 
 ### Bot do Telegram
 
@@ -165,6 +179,8 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 ./mvnw test
 ```
 
+Os testes de banco usam o Postgres em `localhost:8342`; suba com `docker compose up -d notification-db`. A pipeline **CI - Notification Service** (`.github/workflows/notification-service-ci.yml`) roda esses testes e valida o build da imagem em todo push e PR que mexe em `services/notification-service/`.
+
 ## Status
 
 - [x] Cadastro/consulta de cliente por `telegram_chat_id` (JPA + Flyway)
@@ -174,5 +190,5 @@ Isso acontece mesmo com o `.class` compilado corretamente — é um bug de encod
 - [ ] Agente conversacional (IA) no chat do bot
 - [x] Formatador de mensagens (`MessageFormatterAgent`), por enquanto só template, sem IA
 - [ ] Agente recomendador de livros
-- [ ] Container do próprio serviço no `docker-compose.yml` (hoje só o banco está lá)
-- [ ] CI (`notification-service-ci.yml`)
+- [x] Container do próprio serviço no `docker-compose.yml`
+- [x] CI (`notification-service-ci.yml`)
