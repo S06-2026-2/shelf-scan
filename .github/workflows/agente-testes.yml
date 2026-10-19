@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - dev
+      # TEMPORÁRIO: teste do workflow com PR para agente-ia (a única branch com .claude/ do agente). Remover depois.
+      - agente-ia
     types:
       - opened
       - synchronize
