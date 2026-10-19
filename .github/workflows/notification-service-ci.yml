@@ -1,0 +1,71 @@
+name: CI - Notification Service
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - 'feat-notifier*'
+    paths:
+      - 'services/notification-service/**'
+      - '.github/workflows/notification-service-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'services/notification-service/**'
+      - '.github/workflows/notification-service-ci.yml'
+
+concurrency:
+  group: notification-service-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & Test (notification-service)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: services/notification-service
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: shelf_scan_cliente
+          POSTGRES_USER: notification_user
+          POSTGRES_PASSWORD: notification_pass
+        ports:
+          - 8342:5432
+        options: >-
+          --health-cmd "pg_isready -U notification_user -d shelf_scan_cliente"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+          cache-dependency-path: 'services/notification-service/pom.xml'
+
+      - name: Dar permissão de execução ao Wrapper do Maven
+        run: chmod +x mvnw
+
+      - name: Compilar e Rodar Testes
+        run: ./mvnw -B clean test
+
+      - name: Validar Build da Imagem Docker
+        run: docker build -t shelfscan/notification-service:latest .
