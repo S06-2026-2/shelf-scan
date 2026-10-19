@@ -12,6 +12,7 @@ import org.springframework.data.neo4j.core.schema.TargetNode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
+// Empréstimo de um livro para um usuário (regras em docs/specs/database-service/EmprestimoRelationship.md)
 @RelationshipProperties
 @Getter
 @Setter
