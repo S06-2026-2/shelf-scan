@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UsuarioRepository extends Neo4jRepository<UsuarioNode, Long> {
 
+    // Query derivada do nome do método: MATCH (u:Usuario {email: $email}) RETURN count(u) > 0
+    boolean existsByEmail(String email);
 }
