@@ -13,6 +13,12 @@ class OcrError(Exception):
     code = "ocr_error"
 
 
+class FileTooLargeError(OcrError):
+    """O arquivo passa do limite de tamanho em bytes (verificado pela API, antes de ler a imagem)"""
+
+    code = "file_too_large"
+
+
 class UnsupportedFormatError(OcrError):
     """O arquivo não é JPEG nem PNG (verificado pelos magic numbers)"""
 
