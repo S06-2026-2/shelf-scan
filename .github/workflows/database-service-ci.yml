@@ -9,11 +9,9 @@ on:
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
+  # Sem filtro de branch: roda em qualquer PR que mexa no database-service,
+  # inclusive nos PRs de testes do agente (que apontam para a branch do PR original)
   pull_request:
-    branches:
-      - main
-      - dev
-      - feat-db/*
     paths:
       - 'services/database-service/**'
       - '.github/workflows/database-service-ci.yml'
