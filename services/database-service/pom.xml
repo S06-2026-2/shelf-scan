@@ -28,6 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Classes mutadas pelo PIT; sobrescrever com -Dpit.targetClasses=... -->
+		<pit.targetClasses>br.com.virabrequim.database_service.domain.*</pit.targetClasses>
+		<!-- true: o PIT ignora testes que falham sem mutação (usado pelo agente; testes TDD ainda vermelhos) -->
+		<pit.skipFailingTests>false</pit.skipFailingTests>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -136,6 +140,57 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<!-- Registra src/test-agente/java (testes gerados pelo agente) como código de teste -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.6.2</version>
+				<executions>
+					<execution>
+						<id>add-test-agente-source</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>src/test-agente/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Teste de mutação; não roda no ciclo padrão: mvnw test-compile org.pitest:pitest-maven:mutationCoverage -->
+			<plugin>
+				<groupId>org.pitest</groupId>
+				<artifactId>pitest-maven</artifactId>
+				<version>1.30.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-junit5-plugin</artifactId>
+						<version>1.2.3</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<targetClasses>
+						<param>${pit.targetClasses}</param>
+					</targetClasses>
+					<targetTests>
+						<param>br.com.virabrequim.database_service.*</param>
+					</targetTests>
+					<!-- Sobe o Neo4j via Testcontainers: lento e depende de Docker -->
+					<excludedTestClasses>
+						<param>br.com.virabrequim.database_service.DatabaseServiceApplicationTests</param>
+					</excludedTestClasses>
+					<outputFormats>
+						<param>HTML</param>
+						<param>XML</param>
+					</outputFormats>
+					<timestampedReports>false</timestampedReports>
+					<skipFailingTests>${pit.skipFailingTests}</skipFailingTests>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

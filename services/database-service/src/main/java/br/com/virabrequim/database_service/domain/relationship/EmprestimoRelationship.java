@@ -10,7 +10,6 @@ import org.springframework.data.neo4j.core.schema.RelationshipProperties;
 import org.springframework.data.neo4j.core.schema.TargetNode;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 @RelationshipProperties
@@ -18,8 +17,6 @@ import java.time.temporal.ChronoUnit;
 @Setter
 @ToString
 public class EmprestimoRelationship {
-    private static final ZoneId FUSO_BRASILIA = ZoneId.of("America/Sao_Paulo");
-
     @Id
     @GeneratedValue
     private Long id;
@@ -41,20 +38,20 @@ public class EmprestimoRelationship {
         return !isEmprestado();
     }
 
-    public int diasParaVencimento(){
-        long dias = ChronoUnit.DAYS.between(LocalDate.now(FUSO_BRASILIA), this.dataPrevistaDevolucao);
+    public int diasParaVencimento(LocalDate hoje){
+        long dias = ChronoUnit.DAYS.between(hoje, this.dataPrevistaDevolucao);
         int diasInt = Math.toIntExact(dias);
         return diasInt;
     }
 
-    public boolean isVencido(){
-        if(isEmprestado() && diasParaVencimento() < 0) return true;
+    public boolean isVencido(LocalDate hoje){
+        if(isEmprestado() && diasParaVencimento(hoje) < 0) return true;
         return false;
     }
 
-    public boolean estaVencendo(){
+    public boolean estaVencendo(LocalDate hoje){
         if(this.isDevolvido()) throw new IllegalStateException("Emprestimo já está encerrado");
-        if(this.isVencido()) return false;
+        if(this.isVencido(hoje)) return false;
 
         double PORCENTAGEM_PARA_VENCENDO = 0.15D;
         int DIAS_PARA_VENCIMENTO = 3;
@@ -63,7 +60,7 @@ public class EmprestimoRelationship {
                 ChronoUnit.DAYS.between(this.dataEmprestimo, this.dataPrevistaDevolucao)
         );
 
-        int diasParaVencimento = diasParaVencimento();
+        int diasParaVencimento = diasParaVencimento(hoje);
 
         double porcentagemTempoRestante = (double) diasParaVencimento/tempoMaximoDeEmprestimo;
 

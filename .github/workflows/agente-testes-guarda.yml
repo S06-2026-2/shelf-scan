@@ -1,0 +1,43 @@
+name: Agente - Guarda dos PRs de testes
+
+# Sem filtro de paths: um PR de testes que mexa só fora do database-service também precisa ser checado
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  checar-pasta:
+    name: Só altera src/test-agente
+    runs-on: ubuntu-latest
+    # Só PRs vindos das branches do agente gerador de testes
+    if: startsWith(github.head_ref, 'testes-agente/')
+
+    permissions:
+      contents: read
+
+    steps:
+      # Histórico completo: o diff com três pontos precisa do merge-base entre base e head
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checar arquivos alterados
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PASTA_PERMITIDA: services/database-service/src/test-agente/
+        run: |
+          FORA=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | grep -v "^${PASTA_PERMITIDA}" || true)
+
+          if [ -n "$FORA" ]; then
+            echo "::error::PR de testes do agente altera arquivos fora de ${PASTA_PERMITIDA}:"
+            echo "$FORA"
+            exit 1
+          fi
+          echo "OK: todos os arquivos alterados estão em ${PASTA_PERMITIDA}"
