@@ -4,7 +4,7 @@ Contrato HTTP do database-service (Shelf Scan). Ele é o guia da implementação
 frontend, o ocr-service e o notification-service podem esperar. As regras de negócio de cada operação estão nas
 specs em `docs/specs/database-service/` (citadas em cada rota).
 
-> **Status:** rascunho v1 (2026-10-27). Só `POST /user/criar` existe hoje no código e vai virar `POST /api/v1/usuarios`.
+> **Status:** rascunho v1 (2026-10-27). Só `POST /user/criar` existe hoje no código e vai virar `POST /api/v1/usuario`.
 
 ## Modelo do grafo
 
@@ -29,10 +29,10 @@ specs em `docs/specs/database-service/` (citadas em cada rota).
 | --- | --- |
 | Base | `http://localhost:8321/api/v1` (porta do compose; o `v1` permite mudar o contrato sem quebrar clientes) |
 | Formato | JSON, `Content-Type: application/json` |
-| Nomes | Recursos no plural, em português, minúsculas, com hífen (`/emprestados-comigo`). O verbo HTTP diz a ação. |
+| Nomes | Recursos no singular, em português, minúsculas, com hífen (`/emprestados-comigo`). O verbo HTTP diz a ação. |
 | Datas | ISO 8601. Só dia: `"2026-03-10"`. Momento: `"2026-03-10T14:30:00-03:00"`. Fuso de Brasília. |
 | Ids | Números (`Long`) gerados pelo Neo4j. |
-| Usuário "logado" | Ainda não há autenticação: o usuário que faz a ação vem na rota (`/usuarios/{usuarioId}/...`). Quando houver autenticação, essas rotas passam a usar o usuário do token. |
+| Usuário "logado" | Ainda não há autenticação: o usuário que faz a ação vem na rota (`/usuario/{usuarioId}/...`). Quando houver autenticação, essas rotas passam a usar o usuário do token. |
 | Criação | `201 Created` com header `Location` apontando para o recurso criado. |
 | Sem corpo | `204 No Content` (ex.: `DELETE`). |
 | Status de leitura | `"quero-ler"`, `"lendo"`, `"lido"` (os mesmos do frontend). No Java é o enum `StatusLeitura`. |
@@ -47,7 +47,7 @@ Formato **Problem Details** (RFC 9457), que o Spring já suporta com `ProblemDet
   "title": "Bad Request",
   "status": 400,
   "detail": "O nome é obrigatório.",
-  "instance": "/api/v1/usuarios",
+  "instance": "/api/v1/usuario",
   "campos": [{ "campo": "nome", "mensagem": "não pode estar em branco" }]
 }
 ```
@@ -70,9 +70,9 @@ Spec: `UsuarioService.md`.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `POST` | `/usuarios` | `NovoUsuario` | `201` `Usuario` | `400` nome/email inválido · `409` email já usado |
-| `POST` | `/bibliotecas` | `NovoUsuario` | `201` `Usuario` (`tipo: "biblioteca"`) | `400` · `409` |
-| `GET` | `/usuarios/{usuarioId}` | — | `200` `Usuario` | `404` |
+| `POST` | `/usuario` | `NovoUsuario` | `201` `Usuario` | `400` nome/email inválido · `409` email já usado |
+| `POST` | `/biblioteca` | `NovoUsuario` | `201` `Usuario` (`tipo: "biblioteca"`) | `400` · `409` |
+| `GET` | `/usuario/{usuarioId}` | — | `200` `Usuario` | `404` |
 
 O usuário (e a biblioteca) já nasce com a estante padrão "Minha estante".
 
@@ -82,12 +82,12 @@ Spec: `EstanteService.md` (a estante virtual usa o `EmprestimoService.md`).
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `GET` | `/usuarios/{usuarioId}/estantes` | — | `200` `Estante[]` (reais + a virtual por último) | `404` usuário |
-| `POST` | `/usuarios/{usuarioId}/estantes` | `NomeEstante` | `201` `Estante` | `400` nome · `404` · `409` nome repetido |
-| `PATCH` | `/usuarios/{usuarioId}/estantes/{estanteId}` | `NomeEstante` | `200` `Estante` | `400` · `404` · `409` nome repetido |
-| `DELETE` | `/usuarios/{usuarioId}/estantes/{estanteId}` | — | `204` (livros vão para a padrão) | `404` · `409` é a padrão |
-| `GET` | `/usuarios/{usuarioId}/estantes/{estanteId}/livros` | — | `200` `LivroResumo[]` | `404` |
-| `GET` | `/usuarios/{usuarioId}/emprestados-comigo` | — | `200` `LivroResumo[]` (conteúdo da estante virtual) | `404` |
+| `GET` | `/usuario/{usuarioId}/estante` | — | `200` `Estante[]` (reais + a virtual por último) | `404` usuário |
+| `POST` | `/usuario/{usuarioId}/estante` | `NomeEstante` | `201` `Estante` | `400` nome · `404` · `409` nome repetido |
+| `PATCH` | `/usuario/{usuarioId}/estante/{estanteId}` | `NomeEstante` | `200` `Estante` | `400` · `404` · `409` nome repetido |
+| `DELETE` | `/usuario/{usuarioId}/estante/{estanteId}` | — | `204` (livros vão para a padrão) | `404` · `409` é a padrão |
+| `GET` | `/usuario/{usuarioId}/estante/{estanteId}/livro` | — | `200` `LivroResumo[]` | `404` |
+| `GET` | `/usuario/{usuarioId}/emprestados-comigo` | — | `200` `LivroResumo[]` (conteúdo da estante virtual) | `404` |
 
 ## Livros
 
@@ -95,11 +95,11 @@ Spec: `LivroService.md` e `LivroNode.md`.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `POST` | `/usuarios/{usuarioId}/livros` | `NovoLivro` | `201` `Livro` | `400` título/páginas/leitura · `404` usuário ou estante |
-| `GET` | `/livros/{livroId}` | — | `200` `Livro` | `404` |
-| `PATCH` | `/usuarios/{usuarioId}/livros/{livroId}/estante` | `{ "estanteId": 11 }` | `200` `Livro` | `404` livro ou estante não é do usuário |
-| `PUT` | `/usuarios/{usuarioId}/livros/{livroId}/leitura` | `Leitura` | `200` `Livro` | `400` página inválida · `404` não é dono nem está com o livro |
-| `DELETE` | `/usuarios/{usuarioId}/livros/{livroId}` | — | `204` | `404` · `409` livro emprestado |
+| `POST` | `/usuario/{usuarioId}/livro` | `NovoLivro` | `201` `Livro` | `400` título/páginas/leitura · `404` usuário ou estante |
+| `GET` | `/livro/{livroId}` | — | `200` `Livro` | `404` |
+| `PATCH` | `/usuario/{usuarioId}/livro/{livroId}/estante` | `{ "estanteId": 11 }` | `200` `Livro` | `404` livro ou estante não é do usuário |
+| `PUT` | `/usuario/{usuarioId}/livro/{livroId}/leitura` | `Leitura` | `200` `Livro` | `400` página inválida · `404` não é dono nem está com o livro |
+| `DELETE` | `/usuario/{usuarioId}/livro/{livroId}` | — | `204` | `404` · `409` livro emprestado |
 
 `PUT .../leitura` atualiza **a leitura de quem chama**: se for o dono, a do livro; se for quem está com o livro
 emprestado, a do empréstimo.
@@ -113,14 +113,14 @@ Spec: `EmprestimoService.md` e `EmprestimoRelationship.md`.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `POST` | `/usuarios/{donoId}/livros/{livroId}/emprestimos` | `NovoEmprestimo` | `201` `Emprestimo` | `400` data/mesmo usuário · `404` · `409` já emprestado |
-| `POST` | `/usuarios/{donoId}/livros/{livroId}/emprestimos/devolucao` | `Devolucao` (opcional) | `200` `Emprestimo` | `400` data · `404` · `409` não está emprestado |
-| `GET` | `/usuarios/{donoId}/livros/{livroId}/emprestimos` | — | `200` `Emprestimo[]` (histórico, mais recente primeiro) | `404` |
-| `GET` | `/emprestimos/vencendo` | — | `200` `AlertaEmprestimo[]` | — |
-| `GET` | `/emprestimos/vencidos` | — | `200` `AlertaEmprestimo[]` | — |
+| `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | `NovoEmprestimo` | `201` `Emprestimo` | `400` data/mesmo usuário · `404` · `409` já emprestado |
+| `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo/devolucao` | `Devolucao` (opcional) | `200` `Emprestimo` | `400` data · `404` · `409` não está emprestado |
+| `GET` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | — | `200` `Emprestimo[]` (histórico, mais recente primeiro) | `404` |
+| `GET` | `/emprestimo/vencendo` | — | `200` `AlertaEmprestimo[]` | — |
+| `GET` | `/emprestimo/vencidos` | — | `200` `AlertaEmprestimo[]` | — |
 
 A devolução é um `POST` numa sub-rota (e não um `PATCH` no empréstimo) porque é uma **ação** com regra própria,
-não uma edição livre de campos. As rotas `/emprestimos/vencendo` e `/vencidos` são para o notification-service.
+não uma edição livre de campos. As rotas `/emprestimo/vencendo` e `/vencidos` são para o notification-service.
 
 ---
 
