@@ -15,6 +15,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from api.schemas import ExtractionResponse
+from ocr.exceptions import OcrError
 from ocr.pipeline import run_pipeline
 from ocr.text_detector import EastTextDetector
 
@@ -22,6 +23,30 @@ logger = logging.getLogger(__name__)
 
 SERVICE_DIR = Path(__file__).resolve().parent.parent
 EAST_MODEL_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
+
+# Status HTTP de cada code do catálogo de domínio (docs/contrato-api.md, seção 4.3).
+# O domínio (ocr/) não conhece HTTP: a tradução fica toda aqui
+ERROR_STATUS = {
+    "file_too_large": 413,      # Content Too Large
+    "unsupported_format": 415,  # Unsupported Media Type
+    "corrupt_image": 422,       # Unprocessable Content: o arquivo chegou, mas não dá para ler
+    "image_too_large": 422,
+    "image_too_small": 422,
+}
+
+
+def error_response(status_code, code, message):
+    """Monta o corpo único dos erros da API: {"code", "message"}
+
+    O cliente age pelo code; a message é para quem lê o log ou desenvolve (cada
+    cliente escreve a própria mensagem para o usuário).
+
+    ARGS:
+        status_code: Status HTTP
+        code: Identificador estável do catálogo
+        message: Descrição do erro, para o log
+    """
+    return JSONResponse(status_code=status_code, content={"code": code, "message": message})
 
 
 def load_detector(state, model_path):
@@ -58,6 +83,13 @@ app = FastAPI(
     description="Detecção (EAST) e leitura (Tesseract) de texto em capas e lombadas",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(OcrError)
+async def ocr_error_handler(request, exc):
+    """Traduz um erro do domínio para o status e o code do catálogo"""
+    # Um code sem status na tabela é erro de programação: vira 500 (um teste confere a tabela)
+    return error_response(ERROR_STATUS.get(exc.code, 500), exc.code, str(exc))
 
 
 @app.get("/live")
