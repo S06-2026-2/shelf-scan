@@ -112,7 +112,7 @@ Alternativa ao `java -jar`: o compose sobe o banco e o próprio serviço.
 docker compose up -d --build notification-service
 ```
 
-O serviço fica em `http://localhost:8341` e conversa com o banco pela rede interna do compose. O compose lê `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `CORS_ORIGENS_PERMITIDAS` do terminal ou do `.env` na raiz do repo; sem token, o bot fica desativado. Para parar: `docker compose stop notification-service`.
+O serviço fica em `http://localhost:8341` e conversa com o banco pela rede interna do compose. O compose lê `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `CORS_ORIGENS_PERMITIDAS` e `LLM_API_KEY` do terminal ou do `.env` na raiz do repo; sem token, o bot fica desativado, e sem `LLM_API_KEY`, o agente conversacional fica desativado. Para parar: `docker compose stop notification-service`.
 
 - Não rode o container e o `java -jar` ao mesmo tempo: os dois brigam pela porta 8341 e, com token, pelo bot (erro 409).
 - Depois de mudar o código, rode o comando de novo (o `--build` refaz a imagem).
@@ -131,6 +131,23 @@ O bot só liga se a variável de ambiente `TELEGRAM_BOT_TOKEN` estiver definida 
 | `TELEGRAM_BOT_TOKEN` | Liga o bot (long-polling). Sem ela o bot fica desativado. | vazio |
 | `TELEGRAM_BOT_USERNAME` | Monta o link `https://t.me/<username>?start=<código>`. Sem ela, gerar link responde 503. | vazio |
 | `CORS_ORIGENS_PERMITIDAS` | Origens do front autorizadas a chamar `/telegram/**` (várias separadas por vírgula). | `http://localhost:5173` |
+| `LLM_API_KEY` | Liga o agente conversacional. Chave gratuita em [console.groq.com](https://console.groq.com) (sem cartão). Sem ela o bot só entende `/start`. | vazio |
+| `LLM_URL_BASE` | Endereço de qualquer provedor compatível com a API da OpenAI. | `https://api.groq.com/openai/v1` |
+| `LLM_MODELO_CONVERSA` | Modelo usado na conversa. | `openai/gpt-oss-120b` |
+| `LLM_ESFORCO_DE_RACIOCINIO` | `low`, `medium` ou `high` para modelos que raciocinam (gpt-oss). Deixe vazio para os demais. | `low` |
+| `LLM_BUSCA_NA_WEB` | Deixa o modelo pesquisar na web os livros que não conhece (ferramenta `browser_search` da Groq). Gasta cerca de 15 vezes mais tokens por consulta com busca e envia a pergunta também à Exa, que faz a busca. **Desligue (`false`) ao usar outro provedor**, que não entende essa ferramenta. | `true` |
+
+### Agente conversacional
+
+Qualquer mensagem de texto que não seja um comando (`/...`) é respondida pelo Christopher com um modelo de linguagem, sempre sobre livros e leitura. A versão 1 **não acessa a estante** do usuário.
+
+- **Só chats vinculados conversam.** Quem ainda não fez o `/start` com código recebe a orientação de conectar pelo site e não gasta a cota do modelo.
+- **Limites:** 4 mensagens por minuto por chat, texto de até 1.000 caracteres e histórico das últimas 4 falas (em memória: reiniciar o serviço apaga). A cota gratuita da Groq (cerca de 1.000 requisições e 200.000 tokens por dia, 8.000 tokens por minuto) é **compartilhada por todos os usuários**; ao estourar, o bot responde que não conseguiu pensar numa resposta e a conversa volta quando a cota renova.
+- **Busca na web:** o modelo não conhece todos os livros, principalmente pelo título publicado no Brasil (ex.: *Devoradores de Estrelas* é *Project Hail Mary*, de Andy Weir). Com `LLM_BUSCA_NA_WEB=true`, ele pesquisa quando não conhece o livro. Uma consulta com busca gasta cerca de 3.600 tokens (contra cerca de 240 sem busca), então a cota gratuita comporta poucas por minuto; se estourar, o bot responde que não conseguiu pensar numa resposta. O que vem da web é tratado como informação, nunca como instrução.
+- **Texto simples:** o Telegram mostra símbolos de Markdown (`**`, `#`, crases) como estão, então as respostas passam por uma limpeza que os remove, e os marcadores de citação da busca também.
+- **Trocar de provedor ou de modelo** é só mudar `LLM_URL_BASE`, `LLM_MODELO_CONVERSA` e `LLM_API_KEY` (e esvaziar `LLM_ESFORCO_DE_RACIOCINIO` se o modelo não raciocina). A classe `ClienteOpenAiCompativel` serve a qualquer API no formato da OpenAI; um provedor com formato próprio (como a API da Anthropic) pede uma nova implementação de `ClienteLlm`.
+- **Privacidade:** o texto das mensagens e o histórico recente são enviados ao provedor do modelo (hoje a Groq). Nome e identificadores do usuário não são enviados. Não use o plano gratuito do Google com usuários reais: os termos permitem usar o conteúdo para melhorar produtos e exigem plano pago na União Europeia.
+- Sem `LLM_API_KEY`, o agente fica desativado e o serviço sobe normalmente.
 
 ### API para o front (conectar o Telegram)
 
@@ -187,7 +204,7 @@ Os testes de banco usam o Postgres em `localhost:8342`; suba com `docker compose
 - [x] Endpoint para receber o evento "livro salvo" do `database-service` (campos combinados; falta o `eventId`)
 - [x] Integração com a Telegram Bot API (long-polling; `TelegramBotAgent` responde ao `/start`)
 - [x] Vínculo entre o usuário do Shelf Scan e o chat do Telegram (link com código, endpoints para o front e CORS)
-- [ ] Agente conversacional (IA) no chat do bot
+- [x] Agente conversacional (IA) no chat do bot (v1, sem acesso à estante; falta testar com chave real)
 - [x] Formatador de mensagens (`MessageFormatterAgent`), por enquanto só template, sem IA
 - [ ] Agente recomendador de livros
 - [x] Container do próprio serviço no `docker-compose.yml`

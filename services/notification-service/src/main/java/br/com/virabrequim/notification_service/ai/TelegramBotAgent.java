@@ -4,11 +4,14 @@ import br.com.virabrequim.notification_service.vinculo.ConexaoTelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.longpolling.util.DefaultLongPollingUpdateConsumer;
+import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
+
+import java.util.concurrent.Executor;
 
 /**
  * Canal de entrada do bot: recebe cada mensagem que um usuário manda e responde.
@@ -37,10 +40,18 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
 
     private final TelegramClient telegramClient;
     private final ConexaoTelegramService conexaoTelegramService;
+    private final AgenteConversacional agenteConversacional;
+    private final Executor executorDeConversas;
 
-    public TelegramBotAgent(TelegramClient telegramClient, ConexaoTelegramService conexaoTelegramService) {
+    public TelegramBotAgent(
+            TelegramClient telegramClient,
+            ConexaoTelegramService conexaoTelegramService,
+            AgenteConversacional agenteConversacional,
+            Executor executorDeConversas) {
         this.telegramClient = telegramClient;
         this.conexaoTelegramService = conexaoTelegramService;
+        this.agenteConversacional = agenteConversacional;
+        this.executorDeConversas = executorDeConversas;
     }
 
     @Override
@@ -54,8 +65,26 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
         String nome = remetente != null ? remetente.getFirstName() : null;
         String username = remetente != null ? remetente.getUserName() : null;
 
-        String resposta = tratarMensagem(chatId, update.getMessage().getText(), nome, username);
+        String texto = update.getMessage().getText();
+        if (texto.trim().startsWith("/")) {
+            enviar(chatId, tratarMensagem(chatId, texto, nome, username));
+            return;
+        }
+        executorDeConversas.execute(() -> conversar(chatId, texto));
+    }
+
+    private void conversar(Long chatId, String texto) {
+        avisarQueEstaDigitando(chatId);
+        String resposta = agenteConversacional.responder(chatId, texto).orElse(NAO_ENTENDI);
         enviar(chatId, resposta);
+    }
+
+    private void avisarQueEstaDigitando(Long chatId) {
+        try {
+            telegramClient.execute(SendChatAction.builder().chatId(chatId).action("typing").build());
+        } catch (TelegramApiException e) {
+            log.warn("Não foi possível mostrar \"digitando\" no chat {}", chatId);
+        }
     }
 
     String tratarMensagem(Long chatId, String texto, String nome, String username) {
