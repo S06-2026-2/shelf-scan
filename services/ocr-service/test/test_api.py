@@ -1,3 +1,4 @@
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -312,3 +313,92 @@ class TestUnexpectedError:
 
         body = assert_error(response, 500, "internal_error")
         assert "segredo" not in body["message"]
+
+
+class TestPipelineLock:
+    """
+        Uma leitura por vez (contrato, seção 5): o EAST é um modelo só, e duas fotos
+        ao mesmo tempo trocariam o tamanho de entrada uma da outra
+    """
+
+    def test_readings_never_overlap(self, monkeypatch):
+        """Três fotos enviadas juntas: em nenhum momento duas leituras rodam ao mesmo tempo"""
+        set_model_status("ready", detector=DetectorWithoutRegions())
+        active = 0
+        max_active = 0
+        counter_lock = threading.Lock()
+
+        def slow_pipeline(img_bytes, detector):
+            nonlocal active, max_active
+            with counter_lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.3)  # tempo para as outras requisições tentarem entrar
+            with counter_lock:
+                active -= 1
+            return VALID_RESPONSE
+
+        monkeypatch.setattr("api.main.run_pipeline", slow_pipeline)
+        statuses = []
+
+        def send():
+            statuses.append(upload(TestClient(app), SAMPLE_PATH.read_bytes()).status_code)
+
+        threads = [threading.Thread(target=send, daemon=True) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        assert statuses == [200, 200, 200]
+        assert max_active == 1
+
+    def test_lock_is_released_after_an_error(self, client, monkeypatch):
+        """Uma leitura que falha não pode prender as próximas: o lock fica livre depois do erro"""
+        set_model_status("ready", detector=DetectorWithoutRegions())
+        monkeypatch.setattr("api.main.run_pipeline", pipeline_raising(exceptions.CorruptImageError("quebrada")))
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 422
+        assert not main.PIPELINE_LOCK.locked(), "o lock ficou preso: as próximas leituras esperariam para sempre"
+
+
+class TestCors:
+    """
+        CORS: o navegador só entrega a resposta ao site se a origem dele estiver liberada.
+        A configuração segue a do notification-service (CORS_ORIGENS_PERMITIDAS)
+    """
+
+    def test_default_origin_matches_notifier(self):
+        """Mesmo padrão do notification-service: o front do Vite em localhost:5173"""
+        assert main.DEFAULT_CORS_ORIGINS == "http://localhost:5173"
+
+    def test_origins_are_comma_separated(self):
+        assert main.parse_origins(" http://a.test:1, http://b.test:2 ,,") == ["http://a.test:1", "http://b.test:2"]
+
+    def test_allowed_origin_gets_cors_header(self, client):
+        origin = main.CORS_ORIGINS[0]
+
+        response = client.get("/live", headers={"Origin": origin})
+
+        assert response.headers.get("access-control-allow-origin") == origin
+
+    def test_other_origin_gets_no_cors_header(self, client):
+        """Outro site não recebe a liberação: o navegador esconde a resposta dele"""
+        response = client.get("/live", headers={"Origin": "http://outro-site.test"})
+
+        assert "access-control-allow-origin" not in response.headers
+
+    def test_preflight_allows_post_from_front(self, client):
+        """A pergunta prévia do navegador (OPTIONS) libera o POST da foto"""
+        origin = main.CORS_ORIGINS[0]
+
+        response = client.options("/v1/extraction", headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+        })
+
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == origin
+        assert "POST" in response.headers.get("access-control-allow-methods", "")

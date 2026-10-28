@@ -5,6 +5,7 @@ Camada fina sobre o núcleo (ocr/): carrega o detector, expõe as rotas do contr
 """
 
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Annotated
 from fastapi import FastAPI, File, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.schemas import ExtractionResponse
@@ -27,6 +29,18 @@ EAST_MODEL_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
 
 # Maior arquivo aceito, verificado antes de qualquer outra validação (docs/contrato-api.md, seção 5)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
+# Origens que o navegador pode usar para chamar a API (docs/contrato-api.md, seção 5).
+# Mesma variável e mesmo padrão do notification-service: o front do Vite
+DEFAULT_CORS_ORIGINS = "http://localhost:5173"
+
+
+def parse_origins(value):
+    """Separa as origens da variável de ambiente (por vírgula, ignorando espaços e vazios)"""
+    return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+
+CORS_ORIGINS = parse_origins(os.environ.get("CORS_ORIGENS_PERMITIDAS", DEFAULT_CORS_ORIGINS))
 
 # Uma leitura por vez (docs/contrato-api.md, seção 5): o EAST é um modelo só, e o
 # setInputParams troca o tamanho de entrada dele a cada foto
@@ -104,6 +118,10 @@ app = FastAPI(
     description="Detecção (EAST) e leitura (Tesseract) de texto em capas e lombadas",
     lifespan=lifespan,
 )
+
+# O navegador só entrega a resposta ao site se a origem dele estiver aqui.
+# Limitação conhecida: o 500 do internal_error é montado fora deste middleware e sai sem o cabeçalho
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET", "POST"])
 
 
 @app.exception_handler(OcrError)

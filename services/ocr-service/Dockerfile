@@ -1,8 +1,9 @@
 # -----------------------------------------------------------------
 # Imagem do ocr-service: Python + Tesseract + modelo EAST + dependências + testes.
-# Por enquanto o comando padrão roda o pytest (a API entra depois).
+# O comando padrão sobe a API na porta 8301; os testes rodam trocando o comando.
 #   docker build -t shelfscan-ocr services/ocr-service
-#   docker run --rm shelfscan-ocr
+#   docker run --rm -p 8301:8301 shelfscan-ocr
+#   docker run --rm shelfscan-ocr pytest -v -p no:cacheprovider
 # -----------------------------------------------------------------
 FROM python:3.13-slim-trixie
 
@@ -38,6 +39,7 @@ RUN pip install -r requirements-dev.txt
 
 COPY pytest.ini ./
 COPY ocr ./ocr
+COPY api ./api
 COPY test ./test
 COPY samples ./samples
 # Os outros scripts (ex.: debug_detector.py) entram com o código, porque têm teste
@@ -47,5 +49,6 @@ COPY scripts ./scripts
 RUN useradd --system --no-create-home appuser
 USER appuser
 
-# -p no:cacheprovider: o pytest não tenta gravar .pytest_cache em /app
-CMD ["pytest", "-v", "-p", "no:cacheprovider"]
+# 0.0.0.0: aceita conexões de fora do container (o compose mapeia a 8301)
+EXPOSE 8301
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8301"]

@@ -4,8 +4,23 @@ services:
   # -----------------------------------------------------------------
   # Faixa de Portas: 8301 - 8320
   # -----------------------------------------------------------------
-  
-
+  ocr-service:
+    build:
+      context: ./services/ocr-service
+      dockerfile: Dockerfile
+    container_name: shelfscan-ocr-service
+    restart: unless-stopped
+    ports:
+      - "8301:8301"
+    environment:
+      CORS_ORIGENS_PERMITIDAS: ${CORS_ORIGENS_PERMITIDAS:-http://localhost:5173}
+    healthcheck:
+      # /health só responde 200 com o modelo EAST carregado (o urllib dá erro no 503)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8301/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # -----------------------------------------------------------------
   # Faixa de Portas: 8321 - 8340
