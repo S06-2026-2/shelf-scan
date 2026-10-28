@@ -23,6 +23,14 @@ A classe tem duas formas de ser criada:
 
 As datas não podem ser alteradas livremente por setter. A devolução só acontece por `registrarDevolucao(data, hoje)`.
 
+O empréstimo também guarda a **leitura de quem pegou o livro**: status, página atual e data de conclusão. Assim cada
+pessoa que pega o mesmo livro tem a sua própria leitura, e ela fica no histórico depois da devolução. A leitura do
+dono fica no `LivroNode`, não aqui. Ela também não tem setter: só muda por `atualizarLeitura(...)`.
+
+A **porcentagem de leitura não é guardada**: é calculada a partir da página atual e do número de páginas do livro.
+Como o relacionamento não tem acesso ao livro (só ao usuário de destino), quem chama passa o número de páginas do
+livro como parâmetro (`totalPaginas`, `null` quando o livro não tem esse dado).
+
 ## API esperada
 
 Assinaturas que a classe deve ter. Os testes usam estas formas; o que ainda não existe no código fica sem teste
@@ -31,14 +39,18 @@ até ser criado (pode começar como stub com `throw new UnsupportedOperationExce
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
 | `EmprestimoRelationship(UsuarioNode usuario, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao)` | Criação pelo sistema, com validação | R1–R4 |
-| `@PersistenceCreator EmprestimoRelationship(Long id, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao, LocalDate dataDevolucao, UsuarioNode usuario)` | Usado pelo Spring Data Neo4j ao carregar do banco, **sem validação** (pode ter visibilidade de pacote) | R14 |
+| `@PersistenceCreator EmprestimoRelationship(Long id, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao, LocalDate dataDevolucao, UsuarioNode usuario, StatusLeitura statusLeitura, Integer paginaAtual, LocalDate dataConclusaoLeitura)` | Usado pelo Spring Data Neo4j ao carregar do banco, **sem validação** (pode ter visibilidade de pacote) | R14 |
 | `void registrarDevolucao(LocalDate dataDevolucao, LocalDate hoje)` | Encerra o empréstimo | R5–R7 |
 | `boolean isEmprestado()` / `boolean isDevolvido()` | Estado do empréstimo | R4, R5 |
 | `int diasParaVencimento(LocalDate hoje)` | Dias até a data prevista | R8, R9, R14 |
 | `boolean isVencido(LocalDate hoje)` | Se está vencido | R10, R11, R14 |
 | `boolean estaVencendo(LocalDate hoje)` | Se está vencendo | R12, R13, R14 |
+| `void atualizarLeitura(StatusLeitura status, Integer paginaAtual, Integer totalPaginas, LocalDate hoje)` | Atualiza a leitura de quem pegou o livro | R16–R20 |
+| `StatusLeitura getStatusLeitura()` / `Integer getPaginaAtual()` / `LocalDate getDataConclusaoLeitura()` | Leitura de quem pegou o livro | R15–R20 |
+| `Integer porcentagemLeitura(Integer totalPaginas)` | Porcentagem calculada (não é campo guardado) | R21 |
 
-As datas não têm setter público.
+`StatusLeitura` é um enum em `br.com.virabrequim.database_service.domain` com os valores `QUERO_LER`, `LENDO` e
+`LIDO`. As datas e os campos de leitura não têm setter público.
 
 ## Regras
 
@@ -101,6 +113,32 @@ As datas não têm setter público.
   A verificação de devolvido vem **antes**: se o empréstimo já foi devolvido, valem R9, R11 e R13, mesmo sem
   data prevista.
 
+**Leitura de quem pegou o livro**
+
+- **R15.** Um empréstimo recém-criado (construtor do sistema) começa com status `QUERO_LER`, página atual `0` e data
+  de conclusão `null`.
+- **R16.** `status` é obrigatório. `atualizarLeitura(null, ...)` lança `IllegalArgumentException`.
+- **R17.** Por status:
+  - `QUERO_LER`: a página atual passa a ser `0` e a data de conclusão `null`. A `paginaAtual` recebida é ignorada.
+  - `LENDO`: a página atual é obrigatória e não pode ser negativa (`0` é aceito). Se `totalPaginas` não for `null`, a
+    página atual não pode passar dele. `null`, negativa ou maior que `totalPaginas` lança
+    `IllegalArgumentException`. Com `totalPaginas` `null`, não há limite superior. A data de conclusão passa a ser
+    `null`.
+  - `LIDO`: a página atual passa a ser `totalPaginas` (`null` se ele for `null`) e a data de conclusão passa a ser
+    `hoje`. A `paginaAtual` recebida é ignorada.
+- **R18.** Quando `atualizarLeitura` lança exceção, a leitura não muda.
+- **R19.** A leitura fica guardada depois da devolução: `registrarDevolucao` não altera status, página atual nem data
+  de conclusão.
+- **R20.** Num empréstimo devolvido, `atualizarLeitura` lança `IllegalStateException` (a verificação de devolvido vem
+  antes da validação do status e da página).
+- **R21.** `porcentagemLeitura(totalPaginas)` é calculada a cada chamada (vale também para empréstimo devolvido):
+  - status `null` (empréstimo antigo vindo do banco) → `null`;
+  - `QUERO_LER` → `0`;
+  - `LIDO` → `100` (mesmo com `totalPaginas` `null`);
+  - `LENDO` com `totalPaginas` → `paginaAtual * 100 / totalPaginas`, **arredondado para baixo** (inteiro), limitado
+    a `100`;
+  - `LENDO` com `totalPaginas` `null` → `null`.
+
 ## Exemplos
 
 Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escrito outro dia. Nas tabelas, a coluna
@@ -161,6 +199,39 @@ Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escr
   Quando chamo `isVencido(hoje)` e `estaVencendo(hoje)`, Então os dois retornam `false`. Quando chamo
   `diasParaVencimento(hoje)`, Então `IllegalStateException` (pela R9, não pela falta da data).
 
+**Leitura** (empréstimo em 01/03/2026, prevista para 12/03/2026, ativo; livro com **200 páginas**, ou seja,
+`totalPaginas` = 200 nas chamadas)
+
+- **E26 (R15, R21).** Quando crio o empréstimo, Então status `QUERO_LER`, página atual 0, conclusão `null` e
+  `porcentagemLeitura(200)` = 0.
+
+| Exemplo | Chamada | Status | Página atual | `porcentagemLeitura(200)` | Conclusão | Regras |
+| --- | --- | --- | --- | --- | --- | --- |
+| E27 | `atualizarLeitura(LENDO, 80, 200, hoje)` | `LENDO` | 80 | 40 | `null` | R17, R21 |
+| E28 | `atualizarLeitura(LENDO, 133, 200, hoje)` | `LENDO` | 133 | 66 | `null` | R17, R21 |
+| E29 | `atualizarLeitura(LIDO, 10, 200, hoje)` | `LIDO` | 200 | 100 | 10/03/2026 | R17, R21 |
+| E30 | `atualizarLeitura(QUERO_LER, 70, 200, hoje)` | `QUERO_LER` | 0 | 0 | `null` | R17, R21 |
+
+- **E31 (R16, R17, R18).** Dado a leitura `LENDO` na página 80, Quando chamo `atualizarLeitura(null, 90, 200, hoje)`,
+  `atualizarLeitura(LENDO, null, 200, hoje)`, `atualizarLeitura(LENDO, -1, 200, hoje)` ou
+  `atualizarLeitura(LENDO, 201, 200, hoje)`, Então `IllegalArgumentException`, e a leitura continua `LENDO` na
+  página 80.
+- **E32 (R19).** Dado a leitura `LENDO` na página 120, Quando registro a devolução em 10/03/2026, Então a leitura
+  continua `LENDO` na página 120.
+- **E33 (R20).** Dado o empréstimo devolvido em 05/03/2026, Quando chamo `atualizarLeitura(LIDO, null, 200, hoje)` ou
+  `atualizarLeitura(null, null, 200, hoje)`, Então `IllegalStateException`.
+
+**Livro sem número de páginas** (`totalPaginas` = `null`)
+
+- **E34 (R17, R21).** Quando chamo `atualizarLeitura(LENDO, 500, null, hoje)`, Então fica `LENDO` na página 500 e
+  `porcentagemLeitura(null)` = `null`.
+- **E35 (R17, R21).** Quando chamo `atualizarLeitura(LIDO, 30, null, hoje)`, Então fica `LIDO`, página atual `null`,
+  conclusão 10/03/2026 e `porcentagemLeitura(null)` = 100.
+
+**Dado antigo do banco** (carregado pelo construtor de persistência sem leitura)
+
+- **E36 (R21).** Dado empréstimo com status `null`, Quando chamo `porcentagemLeitura(200)`, Então `null`.
+
 ## Casos de borda
 
 - **Prazo de exatamente 1 dia** é o menor permitido (E1). Prazo de 0 dias é inválido (E2).
@@ -177,6 +248,10 @@ Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escr
 - **Empréstimo agendado** (data do empréstimo no futuro) pode ser criado (E24), mas não pode ser devolvido antes de
   começar (E25).
 - **Ordem das verificações:** primeiro se está devolvido, depois se falta a data prevista (E23).
+- **Leitura depois da devolução** fica guardada (E32), mas não pode mais ser alterada (E33).
+- **A porcentagem é arredondada para baixo** (E28): só mostra 100% na última página ou quando `LIDO`.
+- **Empréstimo antigo carregado do banco sem leitura** (campos `null`): os getters retornam `null` e a porcentagem
+  também (E36).
 
 ## Fora do escopo
 

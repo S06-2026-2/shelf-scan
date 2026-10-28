@@ -1,7 +1,8 @@
 package br.com.virabrequim.database_service.domain.node;
 
+import br.com.virabrequim.database_service.domain.StatusLeitura;
 import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,9 +12,11 @@ import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.springframework.data.neo4j.core.schema.Relationship.Direction.OUTGOING;
@@ -23,7 +26,6 @@ import static org.springframework.data.neo4j.core.schema.Relationship.Direction.
 @Setter
 @ToString
 @NoArgsConstructor
-@AllArgsConstructor
 public class LivroNode {
     @Id
     @GeneratedValue
@@ -33,11 +35,19 @@ public class LivroNode {
     // private Foto capa;
     // private Foto lombada;
     // private Foto contraCapa;
-    private String nome;
+    private String titulo;
     private String volume; // possivelmente float
-    private int paginas;
+    private Integer paginas; // null = não informado
     private ZonedDateTime dataDeAdicao;
     private String sinopse;
+
+    // Leitura do dono (spec LivroNode): sem setter público, só muda por atualizarLeitura
+    @Setter(AccessLevel.NONE)
+    private StatusLeitura statusLeitura;
+    @Setter(AccessLevel.NONE)
+    private Integer paginaAtual;
+    @Setter(AccessLevel.NONE)
+    private LocalDate dataConclusaoLeitura;
 
     @ToString.Exclude
     @Relationship(type = "HAS_TAG", direction = OUTGOING)
@@ -54,4 +64,25 @@ public class LivroNode {
     @ToString.Exclude
     @Relationship(type = "LENT_TO", direction = OUTGOING)
     private List<EmprestimoRelationship> emprestimos;
+
+    public Optional<EmprestimoRelationship> emprestimoAtivo() {
+        //TODO: criar (N2, N3)
+        throw new UnsupportedOperationException();
+    }
+
+    public boolean isEmprestado() {
+        //TODO: criar (N4)
+        throw new UnsupportedOperationException();
+    }
+
+    public void atualizarLeitura(StatusLeitura status, Integer paginaAtual, LocalDate hoje) {
+        //TODO: criar (N5–N9)
+        throw new UnsupportedOperationException();
+    }
+
+    // Calculada, não é campo guardado
+    public Integer getPorcentagemLeitura() {
+        //TODO: criar (N10)
+        throw new UnsupportedOperationException();
+    }
 }

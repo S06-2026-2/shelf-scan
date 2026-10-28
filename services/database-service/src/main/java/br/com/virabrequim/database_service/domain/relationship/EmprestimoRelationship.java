@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.domain.relationship;
 
+import br.com.virabrequim.database_service.domain.StatusLeitura;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,6 +29,11 @@ public class EmprestimoRelationship {
     @TargetNode
     @ToString.Exclude
     private UsuarioNode usuario;
+
+    // Leitura de quem pegou o livro emprestado (spec R15–R20)
+    private StatusLeitura statusLeitura;
+    private Integer paginaAtual;
+    private LocalDate dataConclusaoLeitura;
 
     public boolean isEmprestado(){
         if(this.dataDevolucao == null) return true;
@@ -68,5 +74,11 @@ public class EmprestimoRelationship {
             return true;
         }
         return false;
+    }
+
+    // Calculada, não é campo guardado; a relação não acessa o livro, por isso recebe o total de páginas
+    public Integer porcentagemLeitura(Integer totalPaginas) {
+        //TODO: criar (R21)
+        throw new UnsupportedOperationException();
     }
 }
