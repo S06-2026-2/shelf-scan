@@ -12,6 +12,7 @@ from typing import Annotated
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.schemas import ExtractionResponse
@@ -93,6 +94,27 @@ async def ocr_error_handler(request, exc):
     """Traduz um erro do domínio para o status e o code do catálogo"""
     # Um code sem status na tabela é erro de programação: vira 500 (um teste confere a tabela)
     return error_response(ERROR_STATUS.get(exc.code, 500), exc.code, str(exc))
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request_handler(request, exc):
+    """Requisição fora do contrato (como o campo da foto com outro nome): 422 no formato da API
+
+    O FastAPI valida a requisição antes de chamar a rota; sem este handler, ele
+    responderia no formato dele ({"detail": [...]}), sem o code.
+    """
+    fields = ", ".join(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+    return error_response(422, "invalid_request", f"campos ausentes ou inválidos: {fields}")
+
+
+@app.exception_handler(Exception)
+async def internal_error_handler(request, exc):
+    """Erro fora do catálogo: 500 sem os detalhes internos
+
+    O Starlette relança a exceção depois desta resposta, e o servidor (uvicorn)
+    registra o traceback no log: o detalhe fica com quem mantém o serviço.
+    """
+    return error_response(500, "internal_error", "erro interno do ocr-service")
 
 
 @app.get("/live")
