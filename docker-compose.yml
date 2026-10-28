@@ -73,6 +73,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: notification_pass
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       CORS_ORIGENS_PERMITIDAS: ${CORS_ORIGENS_PERMITIDAS:-http://localhost:5173}
     depends_on:
       notification-db:

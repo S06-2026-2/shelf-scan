@@ -112,7 +112,7 @@ Alternativa ao `java -jar`: o compose sobe o banco e o próprio serviço.
 docker compose up -d --build notification-service
 ```
 
-O serviço fica em `http://localhost:8341` e conversa com o banco pela rede interna do compose. O compose lê `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `CORS_ORIGENS_PERMITIDAS` do terminal ou do `.env` na raiz do repo; sem token, o bot fica desativado. Para parar: `docker compose stop notification-service`.
+O serviço fica em `http://localhost:8341` e conversa com o banco pela rede interna do compose. O compose lê `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `CORS_ORIGENS_PERMITIDAS` e `LLM_API_KEY` do terminal ou do `.env` na raiz do repo; sem token, o bot fica desativado, e sem `LLM_API_KEY`, o agente conversacional fica desativado. Para parar: `docker compose stop notification-service`.
 
 - Não rode o container e o `java -jar` ao mesmo tempo: os dois brigam pela porta 8341 e, com token, pelo bot (erro 409).
 - Depois de mudar o código, rode o comando de novo (o `--build` refaz a imagem).
