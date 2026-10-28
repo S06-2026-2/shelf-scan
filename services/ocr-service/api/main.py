@@ -119,8 +119,15 @@ async def extraction(image: Annotated[UploadFile, File(description="Foto da capa
     """Lê a foto enviada no campo multipart "image" e devolve os livros encontrados
 
     RETURNS:
-        Resposta do contrato (books, raw_text, result, meta)
+        Resposta do contrato (books, raw_text, result, meta), ou 503 service_not_ready
+        enquanto o modelo não estiver carregado
     """
+    # Sem o modelo não adianta validar a foto: o cliente tenta de novo em instantes
+    status = getattr(app.state, "model_status", "loading")
+    if status != "ready":
+        message = "o modelo EAST ainda está carregando" if status == "loading" else "o modelo EAST não pôde ser carregado"
+        return error_response(503, "service_not_ready", message)
+
     # Lê no máximo um byte além do limite: basta para saber se passou, sem carregar o resto na memória
     img_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
     if len(img_bytes) > MAX_UPLOAD_BYTES:
