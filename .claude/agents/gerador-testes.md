@@ -68,8 +68,9 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
     - se não conseguir calcular o esperado sem adivinhar, não gere: registre a ambiguidade no relatório;
     - não repita um caso que um Exemplo ou outro teste já cobre (mesma classe de equivalência e mesmo limite);
     - não use derivados para "cobrir linhas" do código;
-    - no máximo **20 derivados no total por execução** (somando todas as classes). Se o teto impedir derivados que
-      você geraria, priorize valores-limite e registre no relatório quais regras ficaram sem derivados por isso.
+    - no máximo **20 derivados por classe com spec** (ex.: 3 classes com spec na entrada → até 20 em cada uma).
+      Classes sem spec não geram derivados e não aumentam o teto. Se o teto impedir derivados que você geraria,
+      priorize valores-limite e registre no relatório quais regras ficaram sem derivados por isso.
 11. **Fora do escopo não se testa.** Nada que a seção "Fora do escopo" da spec lista vira teste ou assert, nem
     como derivado (ex.: o estado de um empréstimo agendado antes de começar). Num teste de Exemplo, verifique só o
     que o **Então** diz: não acrescente asserts sobre outros comportamentos.

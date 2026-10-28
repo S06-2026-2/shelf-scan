@@ -18,7 +18,9 @@ jobs:
     name: Gerar testes a partir das specs
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    timeout-minutes: 20
+    # O timeout do job não pode depender de outputs de steps: fica fixo acima do maior timeout do agente
+    # (12 + 3 * MAX_CLASSES_COM_SPEC = 30 min) mais a folga para checkout, JDK e publicação
+    timeout-minutes: 40
 
     # Um push novo no mesmo PR cancela a execução anterior
     concurrency:
@@ -61,13 +63,17 @@ jobs:
           persist-credentials: false
 
       # Classes de produção alteradas no PR inteiro (base...head), sem arquivos apagados,
-      # convertidas de caminho para FQN (br/com/x/Classe.java -> br.com.x.Classe)
+      # convertidas de caminho para FQN (br/com/x/Classe.java -> br.com.x.Classe).
+      # Os limites do agente escalam com as classes que têm spec (as sem spec não geram testes):
+      # tempo = 12 + 3 * N minutos e turnos = 40 + 40 * N, com N >= 1 (o agente ainda escreve o relatório)
       - name: Listar classes alteradas
         id: classes
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PASTA_JAVA: services/database-service/src/main/java/
+          PASTA_SPECS: docs/specs/database-service
+          MAX_CLASSES_COM_SPEC: 6
         run: |
           # No pathspec do git, '*' também atravessa '/', então '*.java' pega os subpacotes
           FQNS=$(git diff --name-only --diff-filter=d "$BASE_SHA...$HEAD_SHA" -- "${PASTA_JAVA}*.java" \
@@ -77,9 +83,30 @@ jobs:
 
           if [ -z "$FQNS" ]; then
             echo "Nenhuma classe Java de produção alterada; o agente não será executado."
-          else
-            echo "Classes alteradas: $FQNS"
+            echo "fqns=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "Classes alteradas: $FQNS"
+
+          # A primeira linha de cada spec é "classe: <FQN>"
+          COM_SPEC=0
+          for FQN in $FQNS; do
+            if grep -q -x -F "classe: $FQN" "$PASTA_SPECS"/*.md 2>/dev/null; then
+              COM_SPEC=$((COM_SPEC + 1))
+            fi
+          done
+          echo "Classes com spec: $COM_SPEC"
+          echo "com_spec=$COM_SPEC" >> "$GITHUB_OUTPUT"
+
+          # Acima do teto o agente não roda (custo na cota de quem abriu o PR): o PR deve ser dividido
+          if [ "$COM_SPEC" -gt "$MAX_CLASSES_COM_SPEC" ]; then
+            echo "::error::O PR altera $COM_SPEC classes com spec; o limite do agente é $MAX_CLASSES_COM_SPEC por PR. Divida o PR (ex.: um por recurso)."
+            exit 1
+          fi
+
+          N=$(( COM_SPEC > 0 ? COM_SPEC : 1 ))
+          echo "timeout=$(( 12 + 3 * N ))" >> "$GITHUB_OUTPUT"
+          echo "max_turns=$(( 40 + 40 * N ))" >> "$GITHUB_OUTPUT"
           echo "fqns=$FQNS" >> "$GITHUB_OUTPUT"
 
       # O agente compila e roda os testes com `sh mvnw`; o setup-java define o JAVA_HOME
@@ -99,7 +126,8 @@ jobs:
       - name: Rodar agente gerador de testes
         id: agente
         if: steps.classes.outputs.fqns != ''
-        timeout-minutes: 15
+        # O '|| 15' só evita erro de expressão quando o step é pulado (sem classes, sem output de timeout)
+        timeout-minutes: ${{ fromJSON(steps.classes.outputs.timeout || '15') }}
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets[format('CLAUDE_TOKEN_{0}', steps.autor.outputs.sufixo)] }}
@@ -108,7 +136,7 @@ jobs:
           claude_args: |
             --agent gerador-testes
             --settings .claude/gerador-testes.settings.json
-            --max-turns 80
+            --max-turns ${{ steps.classes.outputs.max_turns }}
 
       # Testes gerados, relatório, PIT e log da execução ficam disponíveis no run, mesmo se algo falhar depois
       - name: Guardar testes, relatório e log do agente
@@ -194,6 +222,7 @@ jobs:
       - name: Avisar falha no PR
         if: >-
           failure() && (steps.autor.outcome == 'failure'
+          || steps.classes.outcome == 'failure'
           || steps.agente.outcome == 'failure'
           || steps.publicar.outcome == 'failure')
         env:
@@ -203,11 +232,20 @@ jobs:
           AUTOR: ${{ github.event.pull_request.user.login }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           FALHOU_AUTOR: ${{ steps.autor.outcome == 'failure' }}
+          FALHOU_CLASSES: ${{ steps.classes.outcome == 'failure' }}
           FALHOU_AGENTE: ${{ steps.agente.outcome == 'failure' }}
+          COM_SPEC: ${{ steps.classes.outputs.com_spec }}
+          TIMEOUT: ${{ steps.classes.outputs.timeout }}
           LOG_AGENTE: ${{ runner.temp }}/claude-execution-output.json
         run: |
           if [ "$FALHOU_AUTOR" = "true" ]; then
             MOTIVO="O autor do PR (\`$AUTOR\`) não está na tabela do workflow \`agente-testes.yml\`. Cadastre os secrets \`CLAUDE_TOKEN_<sufixo>\` e \`GH_PAT_<sufixo>\` e adicione o login na tabela."
+          elif [ "$FALHOU_CLASSES" = "true" ]; then
+            if [ -n "$COM_SPEC" ]; then
+              MOTIVO="O PR altera $COM_SPEC classes com spec, acima do limite do agente por PR. Divida o PR (ex.: um por recurso)."
+            else
+              MOTIVO="Não foi possível listar as classes alteradas do PR."
+            fi
           elif [ "$FALHOU_AGENTE" = "true" ]; then
             # Última mensagem "result" do log da execução diz como o agente terminou
             RESULTADO=""
@@ -215,7 +253,8 @@ jobs:
               RESULTADO=$(jq -c '[.[] | select(.type == "result")] | last // empty' "$LOG_AGENTE" || true)
             fi
             if [ -z "$RESULTADO" ]; then
-              MOTIVO="O agente foi interrompido antes de terminar: tempo limite de 15 min ou falha de autenticação do token do Claude."
+              # Sem "result" o Claude Code não chegou a terminar uma sessão: a causa só aparece no log do run
+              MOTIVO="O agente terminou sem resultado. Causas possíveis: tempo limite de ${TIMEOUT} min, falha de autenticação do token do Claude ou erro ao iniciar (ex.: configuração do agente ausente na branch base). Veja o log do step \"Rodar agente gerador de testes\"."
             else
               SUBTIPO=$(jq -r '.subtype' <<< "$RESULTADO")
               ERROS=$(jq -r '(.errors // []) | join("; ")' <<< "$RESULTADO")
