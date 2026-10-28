@@ -30,4 +30,9 @@ public class UsuarioService {
         //TODO: criar
         throw new UnsupportedOperationException();
     }
+
+    public UsuarioNode buscarDonoDoLivro(Long livroId) {
+        //TODO: criar (U8)
+        throw new UnsupportedOperationException();
+    }
 }
