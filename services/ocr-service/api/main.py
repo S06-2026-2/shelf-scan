@@ -15,7 +15,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from api.schemas import ExtractionResponse
-from ocr.exceptions import OcrError
+from ocr.exceptions import FileTooLargeError, OcrError
 from ocr.pipeline import run_pipeline
 from ocr.text_detector import EastTextDetector
 
@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 SERVICE_DIR = Path(__file__).resolve().parent.parent
 EAST_MODEL_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
+
+# Maior arquivo aceito, verificado antes de qualquer outra validação (docs/contrato-api.md, seção 5)
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 # Status HTTP de cada code do catálogo de domínio (docs/contrato-api.md, seção 4.3).
 # O domínio (ocr/) não conhece HTTP: a tradução fica toda aqui
@@ -118,7 +121,10 @@ async def extraction(image: Annotated[UploadFile, File(description="Foto da capa
     RETURNS:
         Resposta do contrato (books, raw_text, result, meta)
     """
-    img_bytes = await image.read()
+    # Lê no máximo um byte além do limite: basta para saber se passou, sem carregar o resto na memória
+    img_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+    if len(img_bytes) > MAX_UPLOAD_BYTES:
+        raise FileTooLargeError(f"o arquivo passa do limite de {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
 
     # O pipeline bloqueia por alguns segundos (CPU e Tesseract): roda numa thread
     # para o servidor continuar respondendo /live e /health enquanto isso
