@@ -28,6 +28,23 @@ EAST_MODEL_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
 # Maior arquivo aceito, verificado antes de qualquer outra validação (docs/contrato-api.md, seção 5)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
+# Uma leitura por vez (docs/contrato-api.md, seção 5): o EAST é um modelo só, e o
+# setInputParams troca o tamanho de entrada dele a cada foto
+PIPELINE_LOCK = threading.Lock()
+
+
+def run_pipeline_exclusive(img_bytes, detector):
+    """Roda o pipeline com o lock: as outras leituras esperam a vez
+
+    O "with" libera o lock mesmo quando o pipeline levanta um erro.
+
+    ARGS / RETURNS:
+        Os mesmos do run_pipeline
+    """
+    with PIPELINE_LOCK:
+        return run_pipeline(img_bytes, detector)
+
+
 # Status HTTP de cada code do catálogo de domínio (docs/contrato-api.md, seção 4.3).
 # O domínio (ocr/) não conhece HTTP: a tradução fica toda aqui
 ERROR_STATUS = {
@@ -157,4 +174,4 @@ async def extraction(image: Annotated[UploadFile, File(description="Foto da capa
 
     # O pipeline bloqueia por alguns segundos (CPU e Tesseract): roda numa thread
     # para o servidor continuar respondendo /live e /health enquanto isso
-    return await run_in_threadpool(run_pipeline, img_bytes, app.state.detector)
+    return await run_in_threadpool(run_pipeline_exclusive, img_bytes, app.state.detector)
