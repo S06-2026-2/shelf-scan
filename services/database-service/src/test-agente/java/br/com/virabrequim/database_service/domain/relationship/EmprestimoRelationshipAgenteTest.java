@@ -139,6 +139,22 @@ class EmprestimoRelationshipAgenteTest {
             EmprestimoRelationship e = emprestimo(dia(1, 3), dia(12, 3), dia(9, 3));
             assertFalse(e.estaVencendo(HOJE));
         }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("R11 (derivado): devolvido no prazo, com hoje depois da data prevista, não está vencido")
+        void devolvidoNoPrazoHojeDepoisDaPrevista() {
+            EmprestimoRelationship e = emprestimo(dia(1, 3), dia(5, 3), dia(4, 3));
+            assertFalse(e.isVencido(HOJE));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("R9 (derivado): devolvido no prazo, com hoje antes da data prevista, diasParaVencimento lança IllegalStateException")
+        void diasDeDevolvidoNoPrazo() {
+            EmprestimoRelationship e = emprestimo(dia(1, 3), dia(12, 3), dia(9, 3));
+            assertThrows(IllegalStateException.class, () -> e.diasParaVencimento(HOJE));
+        }
     }
 
     @Nested
