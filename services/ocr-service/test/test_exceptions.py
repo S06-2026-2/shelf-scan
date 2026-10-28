@@ -7,7 +7,7 @@ from ocr.exceptions import OcrError
 
 # Identificadores combinados no contrato (docs/contrato-api.md, seção 4.3).
 # O front e o bot decidem o que fazer a partir deles: renomear um quebra os dois.
-CONTRACT_CODES = {"unsupported_format", "corrupt_image", "image_too_large", "image_too_small"}
+CONTRACT_CODES = {"file_too_large", "unsupported_format", "corrupt_image", "image_too_large", "image_too_small"}
 
 CATALOG = [
     cls for cls in vars(exceptions).values()
