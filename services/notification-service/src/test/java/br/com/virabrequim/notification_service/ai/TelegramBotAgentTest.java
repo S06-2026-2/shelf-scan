@@ -3,6 +3,8 @@ package br.com.virabrequim.notification_service.ai;
 import br.com.virabrequim.notification_service.vinculo.ConexaoTelegramService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -11,8 +13,12 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -22,7 +28,10 @@ class TelegramBotAgentTest {
 
     private final TelegramClient telegramClient = mock(TelegramClient.class);
     private final ConexaoTelegramService conexao = mock(ConexaoTelegramService.class);
-    private final TelegramBotAgent agent = new TelegramBotAgent(telegramClient, conexao);
+    private final AgenteConversacional agenteConversacional = mock(AgenteConversacional.class);
+    // Runnable::run executa a conversa na própria thread do teste, sem esperar nada em segundo plano.
+    private final TelegramBotAgent agent =
+            new TelegramBotAgent(telegramClient, conexao, agenteConversacional, Runnable::run);
 
     @Test
     void boasVindas_apresentamOBotPeloNomeQueOGrupoDeu() {
@@ -56,8 +65,8 @@ class TelegramBotAgentTest {
     }
 
     @Test
-    void textoQualquer_respondeQueNaoEntendeuESemTentarConectar() {
-        assertEquals(TelegramBotAgent.NAO_ENTENDI, agent.tratarMensagem(1L, "oi, tudo bem?", "Ana", "ana"));
+    void comandoDesconhecido_respondeQueNaoEntendeuESemTentarConectar() {
+        assertEquals(TelegramBotAgent.NAO_ENTENDI, agent.tratarMensagem(1L, "/ajuda", "Ana", "ana"));
 
         verifyNoInteractions(conexao);
     }
@@ -84,6 +93,38 @@ class TelegramBotAgentTest {
         agent.consume(atualizacao(123456L, "/start codigo-do-link", ana));
 
         verify(conexao).conectar("codigo-do-link", 123456L, "Ana", "ana_leitora");
+    }
+
+    @Test
+    void consume_textoComum_mostraDigitandoEEnviaARespostaDoAgente() throws TelegramApiException {
+        when(agenteConversacional.responder(777L, "me indica um livro")).thenReturn(Optional.of("Que tal Dom Casmurro?"));
+
+        agent.consume(atualizacao(777L, "me indica um livro", null));
+
+        InOrder ordem = inOrder(telegramClient);
+        ordem.verify(telegramClient).execute(any(SendChatAction.class));
+        ArgumentCaptor<SendMessage> enviada = ArgumentCaptor.forClass(SendMessage.class);
+        ordem.verify(telegramClient).execute(enviada.capture());
+        assertEquals("777", enviada.getValue().getChatId());
+        assertEquals("Que tal Dom Casmurro?", enviada.getValue().getText());
+    }
+
+    @Test
+    void consume_agenteDesativado_respondeNaoEntendi() throws TelegramApiException {
+        when(agenteConversacional.responder(777L, "oi")).thenReturn(Optional.empty());
+
+        agent.consume(atualizacao(777L, "oi", null));
+
+        ArgumentCaptor<SendMessage> enviada = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramClient).execute(enviada.capture());
+        assertEquals(TelegramBotAgent.NAO_ENTENDI, enviada.getValue().getText());
+    }
+
+    @Test
+    void consume_comandoDesconhecido_naoChamaOAgente() {
+        agent.consume(atualizacao(777L, "/ajuda", null));
+
+        verifyNoInteractions(agenteConversacional);
     }
 
     @Test
