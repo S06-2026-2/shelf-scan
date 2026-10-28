@@ -4,8 +4,8 @@ classe: br.com.virabrequim.database_service.service.EmprestimoService
 
 ## Contexto
 
-Empresta e devolve livros, e lista empréstimos para a estante virtual "Emprestados comigo" e para o
-notification-service (avisos de vencimento no Telegram).
+Empresta e devolve livros, mostra o histórico de empréstimos de um livro e lista empréstimos para a estante
+virtual "Emprestados comigo" e para o notification-service (avisos de vencimento no Telegram).
 
 ```
 (Dono)-[:HAS]->(Estante)<-[:STORED_IN]-(Livro)-[:LENT_TO {datas, leitura}]->(Mutuario)
@@ -28,6 +28,7 @@ aqui só se verifica que o service as usa.
 | `EmprestimoService(UsuarioRepository usuarioRepository, LivroRepository livroRepository, Calendario calendario)` | Injeção pelo construtor | — |
 | `EmprestimoRelationship emprestar(Long donoId, Long livroId, Long mutuarioId, LocalDate dataPrevistaDevolucao)` | Empresta a partir de hoje | M1–M5 |
 | `EmprestimoRelationship devolver(Long donoId, Long livroId, LocalDate dataDevolucao)` | Registra a devolução | M1, M6 |
+| `List<EmprestimoRelationship> historico(Long donoId, Long livroId)` | Histórico do livro, mais recente primeiro | M1, M10 |
 | `List<LivroNode> listarEmprestadosPara(Long usuarioId)` | Estante virtual "Emprestados comigo" | M7 |
 | `List<LivroNode> listarVencendo()` | Para avisos de "vence em breve" | M8, M9 |
 | `List<LivroNode> listarVencidos()` | Para avisos de atraso | M8, M9 |
@@ -66,6 +67,15 @@ Colaboradores usados (mockados nos testes):
   `IllegalStateException`. `dataDevolucao` `null` significa **hoje**. A devolução é feita por
   `emprestimoAtivo.registrarDevolucao(dataDevolucao, hoje)` (as exceções dele são propagadas e nada é salvo). Depois
   o livro é salvo e o método retorna o empréstimo devolvido.
+
+**Histórico**
+
+- **M10.** `historico(donoId, livroId)` só pode ser visto pelo dono (M1 vale para o dono e o livro: quem pegou
+  emprestado recebe `NoSuchElementException`). Retorna **todos** os empréstimos do livro, ativos e devolvidos,
+  ordenados por `dataEmprestimo` do mais recente para o mais antigo. Em caso de empate na data, o que está mais
+  para o fim da lista `emprestimos` vem primeiro (foi acrescentado depois, ver M5). Livro sem empréstimos retorna
+  lista vazia. A lista retornada é uma **lista nova**: a ordem da lista `emprestimos` do livro não muda, e nada é
+  salvo.
 
 **Listagens**
 
@@ -108,6 +118,17 @@ Colaboradores usados (mockados nos testes):
 - **E12 (M6, M1).** Quando chamo `devolver(2L, 5L, null)` (Bruno, que pegou emprestado, não é o dono), Então
   `NoSuchElementException`.
 
+**Histórico**
+
+- **E16 (M10).** Dado o livro 5 com `emprestimos` = [X (01/02/2026, devolvido), Y (01/03/2026, ativo),
+  W (15/02/2026, devolvido)], Quando chamo `historico(1L, 5L)`, Então retorna [Y, W, X]; a lista `emprestimos` do livro
+  continua [X, Y, W] e `save` não é chamado.
+- **E17 (M10).** Dado o livro 5 com `emprestimos` = [P (10/03/2026, devolvido no mesmo dia), Q (10/03/2026, ativo)],
+  Quando chamo `historico(1L, 5L)`, Então retorna [Q, P].
+- **E18 (M10).** Dado o livro 5 sem empréstimos, Quando chamo `historico(1L, 5L)`, Então retorna lista vazia.
+- **E19 (M10, M1).** Quando chamo `historico(2L, 5L)` (Bruno não é o dono), Então `NoSuchElementException`. Com o
+  livro 99 inexistente, `historico(1L, 99L)` também lança `NoSuchElementException`.
+
 **Listagens**
 
 - **E13 (M7).** Dado `findAllComEmprestimoAtivoPara(2L)` = livros 5 e 6, Quando chamo `listarEmprestadosPara(2L)`,
@@ -124,6 +145,7 @@ Colaboradores usados (mockados nos testes):
 - **Quem pegou emprestado não registra a devolução**, só o dono (E12).
 - **Data prevista igual a hoje** é inválida, porque o prazo mínimo é de 1 dia (E7).
 - **Livro de biblioteca e livro de amigo** seguem as mesmas regras.
+- **Histórico não depende de hoje**: `historico` não precisa consultar o `Calendario`.
 
 ## Fora do escopo
 

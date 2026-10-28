@@ -4,9 +4,9 @@ classe: br.com.virabrequim.database_service.service.UsuarioService
 
 ## Contexto
 
-Cria e busca usuários. Existem dois tipos de usuário: o **usuário comum** (`UsuarioNode`, label `Usuario`) e a
-**biblioteca** (`BibliotecaNode extends UsuarioNode`, labels `Usuario` e `Biblioteca`). As regras de criação valem
-para os dois.
+Cria e busca usuários, e descobre o dono de um livro. Existem dois tipos de usuário: o **usuário comum**
+(`UsuarioNode`, label `Usuario`) e a **biblioteca** (`BibliotecaNode extends UsuarioNode`, labels `Usuario` e
+`Biblioteca`). As regras de criação valem para os dois.
 
 Todo usuário nasce com uma **estante padrão**. Ela é ligada ao usuário por dois relacionamentos:
 `HAS` (como qualquer estante, para aparecer na listagem) e `ESTANTE_PADRAO` (para marcar qual é a padrão).
@@ -27,6 +27,7 @@ Nos testes, os repositórios são mocks (Mockito). Salvar o usuário salva junto
 | `UsuarioNode criar(String nome, String email)` | Cria um usuário comum | U1–U5 |
 | `BibliotecaNode criarBiblioteca(String nome, String email)` | Cria uma biblioteca | U1–U6 |
 | `UsuarioNode buscar(Long id)` | Busca pelo id | U7 |
+| `UsuarioNode buscarDonoDoLivro(Long livroId)` | Dono de um livro (para as respostas da API) | U8 |
 
 Colaboradores usados (mockados nos testes):
 
@@ -35,6 +36,7 @@ Colaboradores usados (mockados nos testes):
 | `UsuarioRepository.existsByEmail(String email)` | `boolean` |
 | `UsuarioRepository.save(S usuario)` | o usuário salvo |
 | `UsuarioRepository.findById(Long id)` | `Optional<UsuarioNode>` |
+| `UsuarioRepository.findDonoDoLivro(Long livroId)` | `Optional<UsuarioNode>` |
 
 Entidades:
 - `UsuarioNode`: `nome`, `email`, `List<EstanteNode> estantes` (`HAS`, começa vazia, nunca `null`) e
@@ -56,6 +58,9 @@ Entidades:
 - **U5.** O método retorna o objeto retornado por `save` (é ele que tem o id gerado).
 - **U6.** `criarBiblioteca` segue U1–U5, e o objeto passado para `save` é um `BibliotecaNode`.
 - **U7.** `buscar(id)` retorna o usuário encontrado. Se `findById` retornar vazio, lança `NoSuchElementException`.
+- **U8.** `buscarDonoDoLivro(livroId)` retorna o usuário de `findDonoDoLivro(livroId)`. O dono é derivado do caminho
+  `Livro -[:STORED_IN]-> Estante <-[:HAS]- Usuario`. Se `findDonoDoLivro` retornar vazio (livro inexistente ou sem
+  estante), lança `NoSuchElementException`. Não salva nada.
 
 ## Exemplos
 
@@ -76,6 +81,10 @@ Entidades:
   `criarBiblioteca("Outra", "contato@biblioteca.br")`, Então `IllegalStateException`.
 - **E7 (U7).** Dado `findById(1L)` = usuário Ana, Quando chamo `buscar(1L)`, Então retorna Ana.
 - **E8 (U7).** Dado `findById(99L)` = vazio, Quando chamo `buscar(99L)`, Então `NoSuchElementException`.
+- **E9 (U8).** Dado `findDonoDoLivro(5L)` = usuário Ana, Quando chamo `buscarDonoDoLivro(5L)`, Então retorna Ana e
+  `save` não é chamado.
+- **E10 (U8).** Dado `findDonoDoLivro(99L)` = vazio, Quando chamo `buscarDonoDoLivro(99L)`, Então
+  `NoSuchElementException`.
 
 ## Casos de borda
 
