@@ -1,0 +1,277 @@
+name: Agente - Gerador de Testes (database-service)
+
+on:
+  pull_request:
+    branches:
+      - dev
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    # Só código de produção dispara o agente: PR que mexe apenas em testes não roda (evita laço)
+    paths:
+      - 'services/database-service/src/main/**'
+
+jobs:
+  gerar-testes:
+    name: Gerar testes a partir das specs
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    # O timeout do job não pode depender de outputs de steps: fica fixo acima do maior timeout do agente
+    # (12 + 3 * MAX_CLASSES_COM_SPEC = 30 min) mais a folga para checkout, JDK e publicação
+    timeout-minutes: 40
+
+    # Um push novo no mesmo PR cancela a execução anterior
+    concurrency:
+      group: agente-testes-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    # Código, branch e PR de testes usam o PAT do autor do PR. O GITHUB_TOKEN só lê o código e comenta
+    # avisos de falha (funciona mesmo com o PAT expirado ou ausente)
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      # Tabela login do autor do PR -> sufixo dos secrets (CLAUDE_TOKEN_<sufixo>, GH_PAT_<sufixo>).
+      # Nome de secret não aceita '-', por isso a tabela em vez de usar o login direto.
+      - name: Identificar secrets do autor do PR
+        id: autor
+        env:
+          AUTOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          case "$AUTOR" in
+            Fefeeu)     SUFIXO=FEFEEU ;;
+            F-Loschi)   SUFIXO=F_LOSCHI ;;
+            zSh3rl0cK)  SUFIXO=ZSH3RL0CK ;;
+            *)
+              echo "::error::Autor do PR '$AUTOR' não está na tabela do workflow agente-testes.yml. Cadastre os secrets CLAUDE_TOKEN_<sufixo> e GH_PAT_<sufixo> e adicione o login na tabela."
+              exit 1
+              ;;
+          esac
+          echo "sufixo=$SUFIXO" >> "$GITHUB_OUTPUT"
+
+      # Checkout do head do PR (não do merge com a base): os testes vão para uma branch criada a partir dele.
+      # Histórico completo: o diff com três pontos precisa do merge-base entre base e head.
+      # Sem credenciais persistidas no .git/config: o agente tem Read liberado.
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Classes de produção alteradas no PR inteiro (base...head), sem arquivos apagados,
+      # convertidas de caminho para FQN (br/com/x/Classe.java -> br.com.x.Classe).
+      # Os limites do agente escalam com as classes que têm spec (as sem spec não geram testes):
+      # tempo = 12 + 3 * N minutos e turnos = 40 + 40 * N, com N >= 1 (o agente ainda escreve o relatório)
+      - name: Listar classes alteradas
+        id: classes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PASTA_JAVA: services/database-service/src/main/java/
+          PASTA_SPECS: docs/specs/database-service
+          MAX_CLASSES_COM_SPEC: 6
+        run: |
+          # No pathspec do git, '*' também atravessa '/', então '*.java' pega os subpacotes
+          FQNS=$(git diff --name-only --diff-filter=d "$BASE_SHA...$HEAD_SHA" -- "${PASTA_JAVA}*.java" \
+            | grep -v -E '/(package-info|module-info)\.java$' \
+            | sed -e "s#^${PASTA_JAVA}##" -e 's#\.java$##' -e 's#/#.#g' \
+            | tr '\n' ' ' | xargs || true)
+
+          if [ -z "$FQNS" ]; then
+            echo "Nenhuma classe Java de produção alterada; o agente não será executado."
+            echo "fqns=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Classes alteradas: $FQNS"
+
+          # A primeira linha de cada spec é "classe: <FQN>"
+          COM_SPEC=0
+          for FQN in $FQNS; do
+            if grep -q -x -F "classe: $FQN" "$PASTA_SPECS"/*.md 2>/dev/null; then
+              COM_SPEC=$((COM_SPEC + 1))
+            fi
+          done
+          echo "Classes com spec: $COM_SPEC"
+          echo "com_spec=$COM_SPEC" >> "$GITHUB_OUTPUT"
+
+          # Acima do teto o agente não roda (custo na cota de quem abriu o PR): o PR deve ser dividido
+          if [ "$COM_SPEC" -gt "$MAX_CLASSES_COM_SPEC" ]; then
+            echo "::error::O PR altera $COM_SPEC classes com spec; o limite do agente é $MAX_CLASSES_COM_SPEC por PR. Divida o PR (ex.: um por recurso)."
+            exit 1
+          fi
+
+          N=$(( COM_SPEC > 0 ? COM_SPEC : 1 ))
+          echo "timeout=$(( 12 + 3 * N ))" >> "$GITHUB_OUTPUT"
+          echo "max_turns=$(( 40 + 40 * N ))" >> "$GITHUB_OUTPUT"
+          echo "fqns=$FQNS" >> "$GITHUB_OUTPUT"
+
+      # O agente compila e roda os testes com `sh mvnw`; o setup-java define o JAVA_HOME
+      - name: Configurar JDK 21
+        if: steps.classes.outputs.fqns != ''
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'oracle'
+          cache: 'maven'
+          cache-dependency-path: 'services/database-service/pom.xml'
+
+      # Em PRs a action restaura .claude/ da branch base: o agente e as permissões usados são os da base,
+      # nunca os do PR. O github_token evita depender do GitHub App do Claude (o agente não usa a API do GitHub).
+      # Timeout no step (não só no job): estouro aqui vira falha, e não cancelamento,
+      # que é o mesmo estado de um run cancelado por push novo (concurrency)
+      - name: Rodar agente gerador de testes
+        id: agente
+        if: steps.classes.outputs.fqns != ''
+        # O '|| 15' só evita erro de expressão quando o step é pulado (sem classes, sem output de timeout)
+        timeout-minutes: ${{ fromJSON(steps.classes.outputs.timeout || '15') }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets[format('CLAUDE_TOKEN_{0}', steps.autor.outputs.sufixo)] }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ steps.classes.outputs.fqns }}
+          claude_args: |
+            --agent gerador-testes
+            --settings .claude/gerador-testes.settings.json
+            --max-turns ${{ steps.classes.outputs.max_turns }}
+
+      # Testes gerados, relatório, PIT e log da execução ficam disponíveis no run, mesmo se algo falhar depois
+      - name: Guardar testes, relatório e log do agente
+        if: always() && steps.classes.outputs.fqns != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: agente-testes-pr-${{ github.event.pull_request.number }}
+          path: |
+            services/database-service/src/test-agente/
+            services/database-service/target/relatorio-agente.md
+            services/database-service/target/pit-reports/
+            ${{ steps.agente.outputs.execution_file }}
+          if-no-files-found: warn
+
+      # Relatório também na página do run (útil quando não há PR de testes)
+      - name: Mostrar relatório no resumo do run
+        if: always() && steps.classes.outputs.fqns != ''
+        env:
+          RELATORIO: services/database-service/target/relatorio-agente.md
+        run: |
+          if [ -f "$RELATORIO" ]; then
+            cat "$RELATORIO" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Relatório do agente não foi gerado; veja o log no artifact do run." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Branch testes-agente/pr-<n>-<branch-origem> recriada a cada execução (head do PR + 1 commit com os testes)
+      # e PR apontando para a branch do PR original. Escritas com o PAT do autor, para o CI disparar no PR de testes.
+      - name: Publicar branch e PR de testes
+        id: publicar
+        if: steps.agente.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets[format('GH_PAT_{0}', steps.autor.outputs.sufixo)] }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          BRANCH_ORIGEM: ${{ github.event.pull_request.head.ref }}
+          AUTOR: ${{ github.event.pull_request.user.login }}
+          AUTOR_ID: ${{ github.event.pull_request.user.id }}
+          PASTA_TESTES: services/database-service/src/test-agente
+          RELATORIO: services/database-service/target/relatorio-agente.md
+        run: |
+          if [ -z "$(git status --porcelain -- "$PASTA_TESTES")" ]; then
+            echo "O agente não gerou nem alterou testes; nada a publicar."
+            exit 0
+          fi
+
+          # Push com o PAT só neste step; remove credenciais deixadas por steps anteriores
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+
+          # Reusa a branch do PR pelo prefixo (sobrevive a rename da branch de origem); senão cria o nome
+          BRANCH=$(git ls-remote --heads origin "refs/heads/testes-agente/pr-${PR_NUM}-*" \
+            | head -n 1 | sed 's#.*refs/heads/##')
+          if [ -z "$BRANCH" ]; then
+            BRANCH="testes-agente/pr-${PR_NUM}-${BRANCH_ORIGEM//\//-}"
+          fi
+          echo "Branch de testes: $BRANCH"
+
+          # Só a pasta dos testes do agente entra no commit
+          git switch -C "$BRANCH"
+          git add -- "$PASTA_TESTES"
+          git -c user.name="$AUTOR" -c user.email="${AUTOR_ID}+${AUTOR}@users.noreply.github.com" \
+            commit -m "test: Gera testes do agente para o PR #${PR_NUM}"
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
+
+          [ -f "$RELATORIO" ] || echo "Relatório do agente não foi gerado; veja o log no artifact do run." > "$RELATORIO"
+
+          PR_TESTES=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$PR_TESTES" ]; then
+            gh pr edit "$PR_TESTES" --repo "$REPO" --body-file "$RELATORIO"
+            echo "PR de testes #$PR_TESTES atualizado."
+          else
+            URL=$(gh pr create --repo "$REPO" --base "$BRANCH_ORIGEM" --head "$BRANCH" \
+              --title "test: Testes do agente para o PR #${PR_NUM}" --body-file "$RELATORIO")
+            echo "PR de testes criado: $URL"
+            # Comentário no PR original só na criação, para não repetir a cada push
+            gh pr comment "$PR_NUM" --repo "$REPO" \
+              --body "🤖 O agente gerador de testes abriu o PR ${URL} com os testes deste PR. O resultado (testes passando/falhando e PIT) está na descrição de lá."
+          fi
+
+      # Comenta no PR original a cada falha, com o motivo. Usa o GITHUB_TOKEN (aparece como github-actions[bot]).
+      # Não roda em cancelamento (ex.: run cancelado por push novo no PR).
+      - name: Avisar falha no PR
+        if: >-
+          failure() && (steps.autor.outcome == 'failure'
+          || steps.classes.outcome == 'failure'
+          || steps.agente.outcome == 'failure'
+          || steps.publicar.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          AUTOR: ${{ github.event.pull_request.user.login }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FALHOU_AUTOR: ${{ steps.autor.outcome == 'failure' }}
+          FALHOU_CLASSES: ${{ steps.classes.outcome == 'failure' }}
+          FALHOU_AGENTE: ${{ steps.agente.outcome == 'failure' }}
+          COM_SPEC: ${{ steps.classes.outputs.com_spec }}
+          TIMEOUT: ${{ steps.classes.outputs.timeout }}
+          LOG_AGENTE: ${{ runner.temp }}/claude-execution-output.json
+        run: |
+          if [ "$FALHOU_AUTOR" = "true" ]; then
+            MOTIVO="O autor do PR (\`$AUTOR\`) não está na tabela do workflow \`agente-testes.yml\`. Cadastre os secrets \`CLAUDE_TOKEN_<sufixo>\` e \`GH_PAT_<sufixo>\` e adicione o login na tabela."
+          elif [ "$FALHOU_CLASSES" = "true" ]; then
+            if [ -n "$COM_SPEC" ]; then
+              MOTIVO="O PR altera $COM_SPEC classes com spec, acima do limite do agente por PR. Divida o PR (ex.: um por recurso)."
+            else
+              MOTIVO="Não foi possível listar as classes alteradas do PR."
+            fi
+          elif [ "$FALHOU_AGENTE" = "true" ]; then
+            # Última mensagem "result" do log da execução diz como o agente terminou
+            RESULTADO=""
+            if [ -f "$LOG_AGENTE" ]; then
+              RESULTADO=$(jq -c '[.[] | select(.type == "result")] | last // empty' "$LOG_AGENTE" || true)
+            fi
+            if [ -z "$RESULTADO" ]; then
+              # Sem "result" o Claude Code não chegou a terminar uma sessão: a causa só aparece no log do run
+              MOTIVO="O agente terminou sem resultado. Causas possíveis: tempo limite de ${TIMEOUT} min, falha de autenticação do token do Claude ou erro ao iniciar (ex.: configuração do agente ausente na branch base). Veja o log do step \"Rodar agente gerador de testes\"."
+            else
+              SUBTIPO=$(jq -r '.subtype' <<< "$RESULTADO")
+              ERROS=$(jq -r '(.errors // []) | join("; ")' <<< "$RESULTADO")
+              case "$SUBTIPO" in
+                error_max_turns)
+                  MOTIVO="O agente atingiu o limite de turnos (\`--max-turns\`) sem terminar." ;;
+                error_during_execution)
+                  MOTIVO="Erro durante a execução do agente: ${ERROS:-sem detalhes}" ;;
+                success)
+                  MOTIVO="O agente terminou com erro: $(jq -r '.result // "sem detalhes"' <<< "$RESULTADO" | head -c 500)" ;;
+                *)
+                  MOTIVO="O agente terminou com \`$SUBTIPO\`. ${ERROS}" ;;
+              esac
+            fi
+          else
+            MOTIVO="Os testes foram gerados, mas a publicação da branch ou do PR de testes falhou (PAT \`GH_PAT_<sufixo>\` expirado ou sem permissão?). Os testes gerados estão no artifact do run."
+          fi
+
+          printf '⚠️ **O agente gerador de testes falhou neste PR.**\n\n**Motivo:** %s\n\nDetalhes, relatório e log: %s\n' \
+            "$MOTIVO" "$RUN_URL" | gh pr comment "$PR_NUM" --repo "$REPO" --body-file -
