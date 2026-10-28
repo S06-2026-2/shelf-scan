@@ -17,6 +17,11 @@ public record UsuarioResposta(
         EstanteNode estantePadrao = usuario.getEstantePadrao();
         Long estantePadraoId = estantePadrao == null ? null : estantePadrao.getId();
 
-        return new UsuarioResposta(usuario.getId(), usuario.getNome(), usuario.getEmail(), tipo, estantePadraoId);
+        return new UsuarioResposta(
+                usuario.getId(),
+                usuario.getNome(),
+                usuario.getEmail(),
+                tipo,
+                estantePadraoId);
     }
 }
