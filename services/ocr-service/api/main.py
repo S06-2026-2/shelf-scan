@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.schemas import ExtractionResponse
+from api.schemas import ErrorResponse, ExtractionResponse
 from ocr.exceptions import FileTooLargeError, OcrError
 from ocr.pipeline import run_pipeline
 from ocr.text_detector import EastTextDetector
@@ -68,6 +68,56 @@ ERROR_STATUS = {
     "image_too_large": 422,
     "image_too_small": 422,
 }
+
+# Status dos erros que nascem na própria API, e não no catálogo do domínio
+API_ERROR_STATUS = {
+    "invalid_request": 422,     # o FastAPI barrou a requisição (ex.: campo da foto com outro nome)
+    "service_not_ready": 503,   # o modelo EAST ainda carrega, ou a carga falhou
+    "internal_error": 500,      # um erro fora do catálogo (bug)
+}
+
+# Uma mensagem de exemplo por code, para o /docs (a mensagem real vem de cada erro)
+ERROR_EXAMPLES = {
+    "file_too_large": "o arquivo passa do limite de 20 MB",
+    "unsupported_format": "o arquivo não é JPEG nem PNG",
+    "corrupt_image": "o arquivo começa como imagem, mas não pôde ser decodificado",
+    "image_too_large": "a imagem passa do limite de pixels",
+    "image_too_small": "o menor lado tem 20 px; o mínimo é 32",
+    "invalid_request": "campos ausentes ou inválidos: body.image",
+    "service_not_ready": "o modelo EAST ainda está carregando",
+    "internal_error": "erro interno do ocr-service",
+}
+
+STATUS_DESCRIPTIONS = {
+    413: "Arquivo grande demais",
+    415: "Não é JPEG nem PNG",
+    422: "Imagem que não dá para ler, ou requisição fora do contrato",
+    500: "Erro inesperado",
+    503: "O modelo ainda não está pronto",
+}
+
+
+def error_docs():
+    """Monta a seção de erros do /docs a partir das tabelas de status
+
+    Cada status ganha o schema {code, message} e um exemplo por code, que o
+    Swagger mostra num seletor. Como sai das mesmas tabelas que a API usa para
+    responder, a documentação acompanha qualquer mudança no catálogo.
+
+    RETURNS:
+        Dicionário no formato do parâmetro responses do FastAPI
+    """
+    responses = {}
+    for code, status in {**ERROR_STATUS, **API_ERROR_STATUS}.items():
+        entry = responses.setdefault(status, {
+            "model": ErrorResponse,
+            "description": STATUS_DESCRIPTIONS.get(status, "Erro"),
+            "content": {"application/json": {"examples": {}}},
+        })
+        entry["content"]["application/json"]["examples"][code] = {
+            "value": {"code": code, "message": ERROR_EXAMPLES[code]},
+        }
+    return responses
 
 
 def error_response(status_code, code, message):
@@ -139,7 +189,7 @@ async def invalid_request_handler(request, exc):
     responderia no formato dele ({"detail": [...]}), sem o code.
     """
     fields = ", ".join(".".join(str(part) for part in error["loc"]) for error in exc.errors())
-    return error_response(422, "invalid_request", f"campos ausentes ou inválidos: {fields}")
+    return error_response(API_ERROR_STATUS["invalid_request"], "invalid_request", f"campos ausentes ou inválidos: {fields}")
 
 
 @app.exception_handler(Exception)
@@ -149,7 +199,7 @@ async def internal_error_handler(request, exc):
     O Starlette relança a exceção depois desta resposta, e o servidor (uvicorn)
     registra o traceback no log: o detalhe fica com quem mantém o serviço.
     """
-    return error_response(500, "internal_error", "erro interno do ocr-service")
+    return error_response(API_ERROR_STATUS["internal_error"], "internal_error", "erro interno do ocr-service")
 
 
 @app.get("/live")
@@ -158,7 +208,13 @@ def live():
     return {"status": "alive"}
 
 
-@app.get("/health")
+@app.get("/health", responses={503: {
+    "description": "O modelo ainda carrega, ou a carga falhou",
+    "content": {"application/json": {"examples": {
+        "loading": {"value": {"status": "loading"}},
+        "error": {"value": {"status": "error"}},
+    }}},
+}})
 def health():
     """Pronto: o modelo foi carregado e o serviço aceita fotos
 
@@ -171,7 +227,7 @@ def health():
     return {"status": "ready"}
 
 
-@app.post("/v1/extraction", response_model=ExtractionResponse)
+@app.post("/v1/extraction", response_model=ExtractionResponse, responses=error_docs())
 async def extraction(image: Annotated[UploadFile, File(description="Foto da capa ou da lombada (JPEG ou PNG)")]):
     """Lê a foto enviada no campo multipart "image" e devolve os livros encontrados
 
@@ -183,7 +239,7 @@ async def extraction(image: Annotated[UploadFile, File(description="Foto da capa
     status = getattr(app.state, "model_status", "loading")
     if status != "ready":
         message = "o modelo EAST ainda está carregando" if status == "loading" else "o modelo EAST não pôde ser carregado"
-        return error_response(503, "service_not_ready", message)
+        return error_response(API_ERROR_STATUS["service_not_ready"], "service_not_ready", message)
 
     # Lê no máximo um byte além do limite: basta para saber se passou, sem carregar o resto na memória
     img_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
