@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -142,17 +143,15 @@ class LivroNodeAgenteTest {
                     () -> assertEquals(conclusao, livro.getDataConclusaoLeitura()));
         }
 
-        @ParameterizedTest(name = "E12: atualizarLeitura(LENDO, {0}) lança IllegalArgumentException")
-        @DisplayName("E12 (N7, N9): página inválida em LENDO não altera a leitura vazia")
+        @ParameterizedTest(name = "E12: atualizarLeitura(LENDO, {0}) fica LENDO na página 0, sem exceção")
+        @DisplayName("E12 (N7): página inválida em LENDO vira 0, sem exceção")
         @CsvSource(value = {"NULL", "-1", "201"}, nullValues = "NULL")
         void paginaInvalida(Integer pagina) {
             LivroNode livro = livroComPaginas(200);
-            assertThrows(IllegalArgumentException.class,
-                    () -> livro.atualizarLeitura(StatusLeitura.LENDO, pagina, HOJE));
+            assertDoesNotThrow(() -> livro.atualizarLeitura(StatusLeitura.LENDO, pagina, HOJE));
             assertAll(
-                    () -> assertNull(livro.getStatusLeitura()),
-                    () -> assertNull(livro.getPaginaAtual()),
-                    () -> assertNull(livro.getDataConclusaoLeitura()));
+                    () -> assertEquals(StatusLeitura.LENDO, livro.getStatusLeitura()),
+                    () -> assertEquals(0, livro.getPaginaAtual()));
         }
 
         @Test
@@ -205,20 +204,13 @@ class LivroNodeAgenteTest {
         }
 
         @Test
-        @DisplayName("E18 (N7): página negativa sem número de páginas lança IllegalArgumentException")
+        @DisplayName("E18 (N7): página negativa sem número de páginas fica LENDO na página 0")
         void negativaSemPaginas() {
             LivroNode livro = livroComPaginas(null);
-            assertThrows(IllegalArgumentException.class,
-                    () -> livro.atualizarLeitura(StatusLeitura.LENDO, -1, HOJE));
-        }
-
-        @Test
-        @DisplayName("E19 (N10): páginas reduzidas depois limitam a porcentagem a 100")
-        void paginasAlteradasDepois() {
-            LivroNode livro = livroComPaginas(200);
-            livro.atualizarLeitura(StatusLeitura.LENDO, 150, HOJE);
-            livro.setPaginas(100);
-            assertEquals(100, livro.getPorcentagemLeitura());
+            assertDoesNotThrow(() -> livro.atualizarLeitura(StatusLeitura.LENDO, -1, HOJE));
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, livro.getStatusLeitura()),
+                    () -> assertEquals(0, livro.getPaginaAtual()));
         }
 
         @Test
@@ -262,6 +254,217 @@ class LivroNodeAgenteTest {
             LivroNode livro = livroComPaginas(200);
             livro.atualizarLeitura(StatusLeitura.LENDO, 1, HOJE);
             assertEquals(0, livro.getPorcentagemLeitura());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N7 (derivado): de LIDO para LENDO com página acima do total fica na página 0 e sem conclusão")
+        void lidoParaLendoPaginaInvalida() {
+            LivroNode livro = livroComPaginas(200);
+            livro.atualizarLeitura(StatusLeitura.LIDO, null, LocalDate.of(2026, 3, 1));
+            livro.atualizarLeitura(StatusLeitura.LENDO, 201, HOJE);
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, livro.getStatusLeitura()),
+                    () -> assertEquals(0, livro.getPaginaAtual()),
+                    () -> assertNull(livro.getDataConclusaoLeitura()));
+        }
+    }
+
+    @Nested
+    @DisplayName("Título e número de páginas")
+    class TituloEPaginas {
+
+        private LivroNode lendoNaPagina150() {
+            LivroNode livro = livroComPaginas(200);
+            livro.atualizarLeitura(StatusLeitura.LENDO, 150, HOJE);
+            return livro;
+        }
+
+        private LivroNode lido() {
+            LivroNode livro = livroComPaginas(200);
+            livro.atualizarLeitura(StatusLeitura.LIDO, null, HOJE);
+            return livro;
+        }
+
+        private EmprestimoRelationship comLeitura(EmprestimoRelationship e, StatusLeitura status, Integer pagina) {
+            e.setStatusLeitura(status);
+            e.setPaginaAtual(pagina);
+            return e;
+        }
+
+        @Test
+        @DisplayName("E19 (N13, N14): LENDO na 150 e setPaginas(100) lança IllegalStateException sem mudar nada")
+        void reduzAbaixoDaPaginaLida() {
+            LivroNode livro = lendoNaPagina150();
+            assertThrows(IllegalStateException.class, () -> livro.setPaginas(100));
+            assertAll(
+                    () -> assertEquals(200, livro.getPaginas()),
+                    () -> assertEquals(StatusLeitura.LENDO, livro.getStatusLeitura()),
+                    () -> assertEquals(150, livro.getPaginaAtual()));
+        }
+
+        @ParameterizedTest(name = "E20: setPaginas({0}) muda o total e mantém a página 150")
+        @DisplayName("E20 (N13): LENDO na 150 aceita total igual ou maior")
+        @CsvSource({"150", "300"})
+        void totalIgualOuMaior(Integer paginas) {
+            LivroNode livro = lendoNaPagina150();
+            livro.setPaginas(paginas);
+            assertAll(
+                    () -> assertEquals(paginas, livro.getPaginas()),
+                    () -> assertEquals(150, livro.getPaginaAtual()));
+        }
+
+        @Test
+        @DisplayName("E21 (N13): LIDO acompanha o novo total; sem total a página fica null e a porcentagem 100")
+        void lidoAcompanhaTotal() {
+            LivroNode livro = lido();
+            livro.setPaginas(180);
+            assertEquals(180, livro.getPaginaAtual());
+            livro.setPaginas(0);
+            assertAll(
+                    () -> assertNull(livro.getPaginas()),
+                    () -> assertNull(livro.getPaginaAtual()),
+                    () -> assertEquals(100, livro.getPorcentagemLeitura()));
+        }
+
+        @Test
+        @DisplayName("E22 (N12): setPaginas(0) e setPaginas(null) deixam null; negativo lança IllegalArgumentException")
+        void setPaginasValores() {
+            LivroNode zero = livroComPaginas(200);
+            zero.setPaginas(0);
+            LivroNode nulo = livroComPaginas(200);
+            nulo.setPaginas(null);
+            LivroNode negativo = new LivroNode();
+            assertAll(
+                    () -> assertNull(zero.getPaginas()),
+                    () -> assertNull(nulo.getPaginas()),
+                    () -> assertThrows(IllegalArgumentException.class, () -> negativo.setPaginas(-5)));
+        }
+
+        @Test
+        @DisplayName("E23 (N13): empréstimo ativo LENDO na 120 impede total 100 e aceita total 120")
+        void emprestimoAtivoLendo() {
+            LivroNode livro = livroCom(comLeitura(ativo(), StatusLeitura.LENDO, 120));
+            livro.setPaginas(200);
+            assertThrows(IllegalStateException.class, () -> livro.setPaginas(100));
+            livro.setPaginas(120);
+            assertEquals(120, livro.getPaginas());
+        }
+
+        @Test
+        @DisplayName("E24 (N13): empréstimo devolvido não é verificado nem alterado")
+        void emprestimoDevolvidoIgnorado() {
+            EmprestimoRelationship devolvido = comLeitura(devolvido(), StatusLeitura.LENDO, 190);
+            LivroNode livro = livroCom(devolvido);
+            livro.setPaginas(200);
+            livro.setPaginas(100);
+            assertAll(
+                    () -> assertEquals(100, livro.getPaginas()),
+                    () -> assertEquals(190, devolvido.getPaginaAtual()));
+        }
+
+        @Test
+        @DisplayName("E25 (N11): título sem espaços nas pontas; vazio ou null lança IllegalArgumentException")
+        void titulo() {
+            LivroNode livro = new LivroNode();
+            assertAll(
+                    () -> assertEquals("Duna", new LivroNode("  Duna ").getTitulo()),
+                    () -> assertThrows(IllegalArgumentException.class, () -> new LivroNode(" ")),
+                    () -> assertThrows(IllegalArgumentException.class, () -> livro.setTitulo(null)));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N11 (derivado): setTitulo inválido mantém o título atual")
+        void tituloInvalidoMantemAtual() {
+            LivroNode livro = new LivroNode("Duna");
+            assertThrows(IllegalArgumentException.class, () -> livro.setTitulo("   "));
+            assertEquals("Duna", livro.getTitulo());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N11 (derivado): construtor com título vazio lança IllegalArgumentException")
+        void construtorTituloVazio() {
+            assertThrows(IllegalArgumentException.class, () -> new LivroNode(""));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N12 (derivado): setPaginas(1) (menor positivo) é guardado")
+        void umaPagina() {
+            LivroNode livro = new LivroNode();
+            livro.setPaginas(1);
+            assertEquals(1, livro.getPaginas());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N12 (derivado): setPaginas(-1) (maior negativo) lança IllegalArgumentException")
+        void menosUmaPagina() {
+            LivroNode livro = new LivroNode();
+            assertThrows(IllegalArgumentException.class, () -> livro.setPaginas(-1));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N13 (derivado): QUERO_LER não muda ao alterar o total")
+        void queroLerNaoMuda() {
+            LivroNode livro = livroComPaginas(200);
+            livro.atualizarLeitura(StatusLeitura.QUERO_LER, null, HOJE);
+            livro.setPaginas(100);
+            assertAll(
+                    () -> assertEquals(100, livro.getPaginas()),
+                    () -> assertEquals(StatusLeitura.QUERO_LER, livro.getStatusLeitura()),
+                    () -> assertEquals(0, livro.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N13 (derivado): LENDO na 150 e setPaginas(0) aceita (sem total não há limite)")
+        void lendoSemTotal() {
+            LivroNode livro = lendoNaPagina150();
+            livro.setPaginas(0);
+            assertAll(
+                    () -> assertNull(livro.getPaginas()),
+                    () -> assertEquals(150, livro.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N13 (derivado): empréstimo ativo LIDO acompanha o novo total")
+        void emprestimoAtivoLidoAcompanha() {
+            EmprestimoRelationship ativo = comLeitura(ativo(), StatusLeitura.LIDO, 200);
+            LivroNode livro = livroCom(ativo);
+            livro.setPaginas(200);
+            livro.setPaginas(180);
+            assertEquals(180, ativo.getPaginaAtual());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N14 (derivado): setPaginas negativo não muda o total nem a leitura LIDO")
+        void negativoNaoMudaNada() {
+            LivroNode livro = lido();
+            assertThrows(IllegalArgumentException.class, () -> livro.setPaginas(-5));
+            assertAll(
+                    () -> assertEquals(200, livro.getPaginas()),
+                    () -> assertEquals(200, livro.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N14 (derivado): conflito no empréstimo ativo não altera o total nem a leitura LIDO do dono")
+        void conflitoNoEmprestimoNaoMudaDono() {
+            EmprestimoRelationship ativo = comLeitura(ativo(), StatusLeitura.LENDO, 150);
+            LivroNode livro = livroCom(ativo);
+            livro.setPaginas(200);
+            livro.atualizarLeitura(StatusLeitura.LIDO, null, HOJE);
+            assertThrows(IllegalStateException.class, () -> livro.setPaginas(100));
+            assertAll(
+                    () -> assertEquals(200, livro.getPaginas()),
+                    () -> assertEquals(200, livro.getPaginaAtual()),
+                    () -> assertEquals(150, ativo.getPaginaAtual()));
         }
     }
 }
