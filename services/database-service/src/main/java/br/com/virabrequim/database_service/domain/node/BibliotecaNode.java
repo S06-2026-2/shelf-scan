@@ -9,4 +9,8 @@ import org.springframework.data.neo4j.core.schema.Node;
 @ToString(callSuper = true)
 @NoArgsConstructor
 public class BibliotecaNode extends UsuarioNode {
+
+    public BibliotecaNode(String nome, String email) {
+        super(nome, email);
+    }
 }

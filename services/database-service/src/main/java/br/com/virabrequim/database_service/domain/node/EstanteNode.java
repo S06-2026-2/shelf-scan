@@ -21,4 +21,8 @@ public class EstanteNode {
     private Long id;
 
     private String nome;
+
+    public EstanteNode(String nome){
+        this.nome = nome;
+    }
 }
