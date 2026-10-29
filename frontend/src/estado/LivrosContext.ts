@@ -1,9 +1,12 @@
 import { createContext, useContext } from 'react'
-import type { Livro } from '../tipos/livro'
+import type { Livro, NovoLivro } from '../tipos/livro'
 
 export interface LivrosContextoValor {
   livros: Livro[]
-  adicionarLivro: (livro: Livro) => void
+  carregando: boolean
+  erro: string | null
+  recarregar: () => void
+  adicionarLivro: (livro: NovoLivro) => Promise<void>
 }
 
 export const LivrosContext = createContext<LivrosContextoValor | null>(null)
