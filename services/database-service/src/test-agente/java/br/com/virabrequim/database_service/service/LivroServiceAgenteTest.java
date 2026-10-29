@@ -1,10 +1,13 @@
 package br.com.virabrequim.database_service.service;
 
 import br.com.virabrequim.database_service.domain.StatusLeitura;
+import br.com.virabrequim.database_service.domain.node.AutorNode;
 import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
+import br.com.virabrequim.database_service.domain.node.TagNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
+import br.com.virabrequim.database_service.dto.AtualizacaoLivro;
 import br.com.virabrequim.database_service.repository.AutorRepository;
 import br.com.virabrequim.database_service.repository.LivroRepository;
 import br.com.virabrequim.database_service.repository.TagRepository;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,10 +30,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -39,6 +45,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,6 +64,8 @@ class LivroServiceAgenteTest {
 
     private UsuarioRepository usuarioRepository;
     private LivroRepository livroRepository;
+    private AutorRepository autorRepository;
+    private TagRepository tagRepository;
     private LivroService service;
 
     private UsuarioNode ana;
@@ -114,8 +125,9 @@ class LivroServiceAgenteTest {
         Calendario calendario = mock(Calendario.class);
         when(calendario.diaHoje()).thenReturn(HOJE);
         when(calendario.getClock()).thenReturn(RELOGIO);
-        service = new LivroService(usuarioRepository, livroRepository, mock(AutorRepository.class),
-                mock(TagRepository.class), calendario);
+        autorRepository = mock(AutorRepository.class);
+        tagRepository = mock(TagRepository.class);
+        service = new LivroService(usuarioRepository, livroRepository, autorRepository, tagRepository, calendario);
 
         estante10 = new EstanteNode(10L, "Minha estante");
         estante11 = new EstanteNode(11L, "Quarto");
@@ -218,13 +230,102 @@ class LivroServiceAgenteTest {
             assertDoesNotThrow(() -> service.adicionar(1L, livro, null, null, null));
         }
 
-        @ParameterizedTest(name = "E6: páginas = {0} lança IllegalArgumentException")
-        @DisplayName("E6 (L3): páginas zero ou negativo")
-        @CsvSource({"0", "-5"})
-        void paginasInvalidas(int paginas) {
-            LivroNode livro = livroNovo("Livro");
-            livro.setPaginas(paginas);
+        @ParameterizedTest(name = "E5: livro do construtor vazio com título [{0}] lança IllegalArgumentException")
+        @DisplayName("E5 (L2): o adicionar revalida o título do livro montado pelo construtor vazio")
+        @CsvSource(value = {"NULL", "''", "'  '"}, nullValues = "NULL")
+        void tituloInvalidoRevalidado(String titulo) throws Exception {
+            // O setTitulo já recusa esses valores; o campo é preenchido por reflexão para que a exceção venha do
+            // próprio adicionar (com null, o construtor vazio já deixa o título null).
+            LivroNode livro = new LivroNode();
+            Field campo = LivroNode.class.getDeclaredField("titulo");
+            campo.setAccessible(true);
+            campo.set(livro, titulo);
             assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livro, null, null, null));
+            verify(livroRepository, never()).save(any());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L2 (derivado): o adicionar remove os espaços das pontas de um título que chegou sem passar pelo setter")
+        void tituloComEspacosRevalidado() throws Exception {
+            LivroNode livro = new LivroNode();
+            Field campo = LivroNode.class.getDeclaredField("titulo");
+            campo.setAccessible(true);
+            campo.set(livro, "  Duna ");
+            service.adicionar(1L, livro, null, null, null);
+            assertEquals("Duna", capturarSalvo().getTitulo());
+        }
+
+        @Test
+        @DisplayName("E6 (L3): páginas = 0 é aceito e fica null")
+        void paginasZero() {
+            LivroNode livro = livroNovo("Livro");
+            livro.setPaginas(0);
+            assertDoesNotThrow(() -> service.adicionar(1L, livro, null, null, null));
+            assertNull(capturarSalvo().getPaginas());
+        }
+
+        @Test
+        @DisplayName("E6 (L3): páginas = -5 lança IllegalArgumentException no adicionar")
+        void paginasNegativas() throws Exception {
+            // O setPaginas já recusa -5; o campo é preenchido por reflexão para simular um livro que chegou com
+            // páginas inválidas e verificar que o próprio adicionar revalida.
+            LivroNode livro = livroNovo("Livro");
+            Field paginas = LivroNode.class.getDeclaredField("paginas");
+            paginas.setAccessible(true);
+            paginas.set(livro, -5);
+            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livro, null, null, null));
+            verify(livroRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("E1 (L6): sem status, o livro salvo não tem leitura")
+        void semLeitura() {
+            service.adicionar(1L, livroNovo("Livro"), null, null, null);
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertNull(salvo.getStatusLeitura()),
+                    () -> assertNull(salvo.getPaginaAtual()),
+                    () -> assertNull(salvo.getDataConclusaoLeitura()));
+        }
+
+        @Test
+        @DisplayName("E8 (L6): LENDO na página 80 de 200 é aplicado antes do save")
+        void adicionaLendo() {
+            LivroNode livro = livroNovo("Livro");
+            livro.setPaginas(200);
+            service.adicionar(1L, livro, null, StatusLeitura.LENDO, 80);
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, salvo.getStatusLeitura()),
+                    () -> assertEquals(80, salvo.getPaginaAtual()),
+                    () -> assertEquals(40, salvo.getPorcentagemLeitura()));
+        }
+
+        @Test
+        @DisplayName("E8 (L6): LENDO na página 500 de 200 fica na página 0")
+        void adicionaLendoPaginaInvalida() {
+            LivroNode livro = livroNovo("Livro");
+            livro.setPaginas(200);
+            service.adicionar(1L, livro, null, StatusLeitura.LENDO, 500);
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, salvo.getStatusLeitura()),
+                    () -> assertEquals(0, salvo.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L6 (derivado): adicionar como LIDO usa hoje do calendário como conclusão")
+        void adicionaLido() {
+            LivroNode livro = livroNovo("Livro");
+            livro.setPaginas(200);
+            service.adicionar(1L, livro, null, StatusLeitura.LIDO, null);
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LIDO, salvo.getStatusLeitura()),
+                    () -> assertEquals(200, salvo.getPaginaAtual()),
+                    () -> assertEquals(HOJE, salvo.getDataConclusaoLeitura()));
         }
 
         @Test
@@ -297,6 +398,15 @@ class LivroServiceAgenteTest {
         void moverEmprestado() {
             livro5.getEmprestimos().add(emprestimoAtivoPara(bruno));
             assertDoesNotThrow(() -> service.mover(1L, 5L, 11L));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L8 (derivado): mover retorna o objeto devolvido pelo save")
+        void moverRetornaSalvo() {
+            LivroNode retornadoPeloSave = new LivroNode();
+            when(livroRepository.save(any(LivroNode.class))).thenReturn(retornadoPeloSave);
+            assertSame(retornadoPeloSave, service.mover(1L, 5L, 11L));
         }
 
         @Test
@@ -402,10 +512,28 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E21 (L10): página acima do total lança IllegalArgumentException e nada é salvo")
+        @DisplayName("E30 (L10): página acima do total fica LENDO na página 0, sem exceção, e o livro é salvo")
         void paginaInvalida() {
-            assertThrows(IllegalArgumentException.class,
-                    () -> service.atualizarLeitura(1L, 5L, StatusLeitura.LENDO, 250));
+            assertDoesNotThrow(() -> service.atualizarLeitura(1L, 5L, StatusLeitura.LENDO, 250));
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, livro5.getStatusLeitura()),
+                    () -> assertEquals(0, livro5.getPaginaAtual()),
+                    () -> verify(livroRepository).save(livro5));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L10 (derivado): atualizarLeitura retorna o objeto devolvido pelo save")
+        void atualizarLeituraRetornaSalvo() {
+            LivroNode retornadoPeloSave = new LivroNode();
+            when(livroRepository.save(any(LivroNode.class))).thenReturn(retornadoPeloSave);
+            assertSame(retornadoPeloSave, service.atualizarLeitura(1L, 5L, StatusLeitura.LENDO, 80));
+        }
+
+        @Test
+        @DisplayName("E31 (L10): status null lança IllegalArgumentException e nada é salvo")
+        void statusNull() {
+            assertThrows(IllegalArgumentException.class, () -> service.atualizarLeitura(1L, 5L, null, 10));
             verify(livroRepository, never()).save(any());
         }
 
@@ -418,6 +546,213 @@ class LivroServiceAgenteTest {
             assertThrows(NoSuchElementException.class,
                     () -> service.atualizarLeitura(2L, 5L, StatusLeitura.LENDO, 10));
             verify(livroRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Autores e tags (adicionar)")
+    class AutoresETags {
+
+        @Test
+        @DisplayName("E9 (L11): autor com o mesmo nome no banco é reaproveitado")
+        void autorDoBanco() {
+            AutorNode doBanco = new AutorNode("Fiódor Dostoiévski");
+            doBanco.setId(7L);
+            when(autorRepository.findFirstByNomeIgnoreCase("fiódor dostoiévski")).thenReturn(Optional.of(doBanco));
+            LivroNode livro = livroNovo("Livro");
+            livro.setAutores(new ArrayList<>(List.of(new AutorNode("fiódor   dostoiévski"))));
+
+            service.adicionar(1L, livro, null, null, null);
+
+            assertThat(capturarSalvo().getAutores()).singleElement().extracting(AutorNode::getId).isEqualTo(7L);
+        }
+
+        @Test
+        @DisplayName("E10 (L11): autores repetidos sem diferenciar maiúsculas viram um só")
+        void autoresRepetidos() {
+            LivroNode livro = livroNovo("Livro");
+            livro.setAutores(new ArrayList<>(List.of(new AutorNode("Ana Maria"), new AutorNode("ana maria"))));
+
+            service.adicionar(1L, livro, null, null, null);
+
+            assertThat(capturarSalvo().getAutores()).singleElement().extracting(AutorNode::getNome)
+                    .isEqualTo("Ana Maria");
+        }
+
+        @Test
+        @DisplayName("E11 (L11): tags com o mesmo nome normalizado viram a tag do banco")
+        void tagDoBanco() {
+            TagNode doBanco = new TagNode("Ficção");
+            when(tagRepository.findById("ficcao")).thenReturn(Optional.of(doBanco));
+            LivroNode livro = livroNovo("Livro");
+            livro.setTags(new java.util.HashSet<>(List.of(new TagNode("FICÇÃO"), new TagNode("ficcao"))));
+
+            service.adicionar(1L, livro, null, null, null);
+
+            assertThat(capturarSalvo().getTags()).singleElement().isSameAs(doBanco);
+        }
+    }
+
+    @Nested
+    @DisplayName("Atualizar (PATCH)")
+    class Atualizar {
+
+        private AutorNode autorX;
+        private TagNode romance;
+
+        @BeforeEach
+        void livroComAutorETag() {
+            autorX = new AutorNode("Autor X");
+            autorX.setId(7L);
+            romance = new TagNode("romance");
+            livro5.setAutores(new ArrayList<>(List.of(autorX)));
+            livro5.setTags(new java.util.HashSet<>(Set.of(romance)));
+        }
+
+        private AtualizacaoLivro dados(String titulo, List<String> autores, List<String> tags, String isbn,
+                String volume, Integer paginas, String sinopse) {
+            return new AtualizacaoLivro(titulo, autores, tags, isbn, volume, paginas, sinopse);
+        }
+
+        @Test
+        @DisplayName("E14 (L12): só o título muda; autores, tags, páginas e leitura continuam")
+        void soTitulo() {
+            service.atualizar(1L, 5L, dados("Novo", null, null, null, null, null, null));
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertEquals("Novo", salvo.getTitulo()),
+                    () -> assertThat(salvo.getAutores()).containsExactly(autorX),
+                    () -> assertThat(salvo.getTags()).containsExactly(romance),
+                    () -> assertEquals(200, salvo.getPaginas()),
+                    () -> assertNull(salvo.getStatusLeitura()),
+                    () -> assertNull(salvo.getPaginaAtual()));
+        }
+
+        @Test
+        @DisplayName("E15 (L12, L13): autores e tags substituem a lista inteira e os antigos vão para limpeza de órfãos")
+        void substituiAutoresETags() {
+            service.atualizar(1L, 5L, dados(null, List.of("Autor Y"), List.of(), null, null, null, null));
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertThat(salvo.getAutores()).singleElement().extracting(AutorNode::getNome)
+                            .isEqualTo("Autor Y"),
+                    () -> assertThat(salvo.getTags()).isEmpty(),
+                    () -> verify(autorRepository).apagarOrfaos(argThat(ids -> ids.size() == 1 && ids.contains(7L))),
+                    () -> verify(tagRepository).apagarOrfas(
+                            argThat(nomes -> nomes.size() == 1 && nomes.contains("romance"))));
+        }
+
+        @Test
+        @DisplayName("E16 (L12): LENDO na 150 e páginas = 100 lança IllegalStateException e não salva")
+        void paginasConflitam() {
+            livro5.atualizarLeitura(StatusLeitura.LENDO, 150, HOJE);
+            assertThrows(IllegalStateException.class,
+                    () -> service.atualizar(1L, 5L, dados(null, null, null, null, null, 100, null)));
+            verify(livroRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("E16 (L12): LENDO na 150 e páginas = 0 remove o total")
+        void paginasZeroRemoveTotal() {
+            livro5.atualizarLeitura(StatusLeitura.LENDO, 150, HOJE);
+            service.atualizar(1L, 5L, dados(null, null, null, null, null, 0, null));
+            assertNull(capturarSalvo().getPaginas());
+        }
+
+        @Test
+        @DisplayName("E17 (L12): ISBN vazio apaga o ISBN")
+        void isbnVazio() {
+            livro5.setIsbn("123");
+            service.atualizar(1L, 5L, dados(null, null, null, "", null, null, null));
+            assertNull(capturarSalvo().getIsbn());
+        }
+
+        @Test
+        @DisplayName("E18 (L7): usuário que não é dono lança NoSuchElementException e não salva")
+        void naoDono() {
+            assertThrows(NoSuchElementException.class,
+                    () -> service.atualizar(2L, 5L, dados("Novo", null, null, null, null, null, null)));
+            verify(livroRepository, never()).save(any());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L12 (derivado): atualizar retorna o objeto devolvido pelo save")
+        void atualizarRetornaSalvo() {
+            LivroNode retornadoPeloSave = new LivroNode();
+            when(livroRepository.save(any(LivroNode.class))).thenReturn(retornadoPeloSave);
+            assertSame(retornadoPeloSave, service.atualizar(1L, 5L, dados("Novo", null, null, null, null, null, null)));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L12 (derivado): volume e sinopse só com espaços viram null")
+        void volumeESinopseEmBranco() {
+            livro5.setVolume("2");
+            livro5.setSinopse("Uma sinopse");
+            service.atualizar(1L, 5L, dados(null, null, null, null, "  ", null, "   "));
+            LivroNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertNull(salvo.getVolume()),
+                    () -> assertNull(salvo.getSinopse()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L12 (derivado): lista de autores vazia remove todos os autores")
+        void autoresVazio() {
+            service.atualizar(1L, 5L, dados(null, List.of(), null, null, null, null, null));
+            assertThat(capturarSalvo().getAutores()).isEmpty();
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L11 (derivado): no atualizar, autor existente no banco é reaproveitado")
+        void autorDoBancoNoAtualizar() {
+            AutorNode doBanco = new AutorNode("Autor Z");
+            doBanco.setId(8L);
+            when(autorRepository.findFirstByNomeIgnoreCase("Autor Z")).thenReturn(Optional.of(doBanco));
+            service.atualizar(1L, 5L, dados(null, List.of("Autor Z"), null, null, null, null, null));
+            assertThat(capturarSalvo().getAutores()).singleElement().isSameAs(doBanco);
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L1 (derivado): atualizar livro inexistente lança NoSuchElementException")
+        void livroInexistente() {
+            assertThrows(NoSuchElementException.class,
+                    () -> service.atualizar(1L, 99L, dados("Novo", null, null, null, null, null, null)));
+        }
+    }
+
+    @Nested
+    @DisplayName("Remover: órfãos")
+    class RemoverOrfaos {
+
+        @Test
+        @DisplayName("E23 (L9, L13): apaga o livro e depois limpa o autor 7 e a tag romance")
+        void apagaELimpaOrfaos() {
+            AutorNode autor = new AutorNode("Autor X");
+            autor.setId(7L);
+            livro5.setAutores(new ArrayList<>(List.of(autor)));
+            livro5.setTags(new java.util.HashSet<>(Set.of(new TagNode("romance"))));
+
+            service.remover(1L, 5L);
+
+            InOrder ordem = inOrder(livroRepository, autorRepository, tagRepository);
+            ordem.verify(livroRepository).delete(livro5);
+            ordem.verify(autorRepository).apagarOrfaos(argThat(ids -> ids.size() == 1 && ids.contains(7L)));
+            ordem.verify(tagRepository).apagarOrfas(argThat(nomes -> nomes.size() == 1 && nomes.contains("romance")));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L13 (derivado): livro sem autores nem tags não chama a limpeza de órfãos")
+        void semAutoresNemTags() {
+            service.remover(1L, 5L);
+            assertAll(
+                    () -> verify(autorRepository, never()).apagarOrfaos(anyCollection()),
+                    () -> verify(tagRepository, never()).apagarOrfas(anyCollection()));
         }
     }
 }
