@@ -27,13 +27,19 @@ public class UsuarioController {
 
     @PostMapping("/usuario")
     public ResponseEntity<UsuarioResposta> criar(@Valid @RequestBody NovoUsuario novoUsuario) {
-        UsuarioNode usuario = usuarioService.criar(novoUsuario.nome(), novoUsuario.email());
+        UsuarioNode usuario = usuarioService.criar(
+                novoUsuario.nome(),
+                novoUsuario.email()
+        );
         return criado(usuario);
     }
 
     @PostMapping("/biblioteca")
     public ResponseEntity<UsuarioResposta> criarBiblioteca(@Valid @RequestBody NovoUsuario novaBiblioteca) {
-        UsuarioNode biblioteca = usuarioService.criarBiblioteca(novaBiblioteca.nome(), novaBiblioteca.email());
+        UsuarioNode biblioteca = usuarioService.criarBiblioteca(
+                novaBiblioteca.nome(),
+                novaBiblioteca.email()
+        );
         return criado(biblioteca);
     }
 
