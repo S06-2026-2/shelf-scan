@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.service;
 
+import br.com.virabrequim.database_service.domain.DestinoLivros;
 import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
@@ -96,8 +97,8 @@ class EstanteServiceAgenteTest {
         assertAll(
                 () -> assertThrows(NoSuchElementException.class, () -> service.listar(99L)),
                 () -> assertThrows(NoSuchElementException.class, () -> service.criar(99L, "X")),
-                () -> assertThrows(NoSuchElementException.class, () -> service.renomear(99L, 11L, "X")),
-                () -> assertThrows(NoSuchElementException.class, () -> service.apagar(99L, 11L)));
+                () -> assertThrows(NoSuchElementException.class, () -> service.atualizar(99L, 11L, "X")),
+                () -> assertThrows(NoSuchElementException.class, () -> service.apagar(99L, 11L, DestinoLivros.MOVER)));
     }
 
     @Nested
@@ -151,13 +152,13 @@ class EstanteServiceAgenteTest {
         @Test
         @DisplayName("E7 (S4, S6): renomear para nome de outra estante do usuário lança IllegalStateException")
         void nomeDeOutraEstante() {
-            assertThrows(IllegalStateException.class, () -> service.renomear(1L, 11L, "Sala"));
+            assertThrows(IllegalStateException.class, () -> service.atualizar(1L, 11L, "Sala"));
         }
 
         @Test
         @DisplayName("E8 (S4): manter o próprio nome mudando maiúsculas é permitido")
         void proprioNome() {
-            service.renomear(1L, 11L, "quarto");
+            service.atualizar(1L, 11L, "quarto");
             assertEquals("quarto", estanteDe(ana, 11L).getNome());
         }
 
@@ -165,14 +166,14 @@ class EstanteServiceAgenteTest {
         @DisplayName("E9 (S6): estante de outro usuário ou inexistente lança NoSuchElementException")
         void estanteDeOutro() {
             assertAll(
-                    () -> assertThrows(NoSuchElementException.class, () -> service.renomear(1L, 21L, "X")),
-                    () -> assertThrows(NoSuchElementException.class, () -> service.renomear(1L, 999L, "X")));
+                    () -> assertThrows(NoSuchElementException.class, () -> service.atualizar(1L, 21L, "X")),
+                    () -> assertThrows(NoSuchElementException.class, () -> service.atualizar(1L, 999L, "X")));
         }
 
         @Test
         @DisplayName("E10 (S7): a padrão pode ser renomeada e continua sendo a padrão")
         void renomearPadrao() {
-            service.renomear(1L, 10L, "Estante principal");
+            service.atualizar(1L, 10L, "Estante principal");
             assertAll(
                     () -> assertEquals("Estante principal", estanteDe(ana, 10L).getNome()),
                     () -> assertEquals(10L, ana.getEstantePadrao().getId()));
@@ -182,7 +183,7 @@ class EstanteServiceAgenteTest {
         @Tag("derivado")
         @DisplayName("S3 (derivado): renomear remove os espaços nas pontas")
         void renomearTrim() {
-            service.renomear(1L, 11L, "  Escritório  ");
+            service.atualizar(1L, 11L, "  Escritório  ");
             assertEquals("Escritório", estanteDe(ana, 11L).getNome());
         }
 
@@ -190,7 +191,7 @@ class EstanteServiceAgenteTest {
         @Tag("derivado")
         @DisplayName("S3 (derivado): renomear para nome só com espaços lança IllegalArgumentException")
         void renomearEmBranco() {
-            assertThrows(IllegalArgumentException.class, () -> service.renomear(1L, 11L, "  "));
+            assertThrows(IllegalArgumentException.class, () -> service.atualizar(1L, 11L, "  "));
         }
     }
 
@@ -201,7 +202,7 @@ class EstanteServiceAgenteTest {
         @Test
         @DisplayName("E11 (S8): a estante padrão não pode ser apagada e nada é alterado")
         void apagarPadrao() {
-            assertThrows(IllegalStateException.class, () -> service.apagar(1L, 10L));
+            assertThrows(IllegalStateException.class, () -> service.apagar(1L, 10L, DestinoLivros.MOVER));
             assertAll(
                     () -> verify(estanteRepository, never()).delete(any()),
                     () -> verify(livroRepository, never()).saveAll(any()),
@@ -218,7 +219,7 @@ class EstanteServiceAgenteTest {
             b.setEstante(quarto);
             when(livroRepository.findAllByEstanteId(11L)).thenReturn(List.of(a, b));
 
-            service.apagar(1L, 11L);
+            service.apagar(1L, 11L, DestinoLivros.MOVER);
 
             InOrder ordem = inOrder(livroRepository, estanteRepository);
             assertAll(
@@ -241,14 +242,14 @@ class EstanteServiceAgenteTest {
         @DisplayName("E13 (S9, S10): estante vazia é apagada normalmente")
         void apagarVazia() {
             when(livroRepository.findAllByEstanteId(12L)).thenReturn(List.of());
-            service.apagar(1L, 12L);
+            service.apagar(1L, 12L, DestinoLivros.MOVER);
             verify(estanteRepository).delete(argThat(e -> e.getId() == 12L));
         }
 
         @Test
         @DisplayName("E14 (S6): estante de outro usuário lança NoSuchElementException e nada é apagado")
         void apagarDeOutro() {
-            assertThrows(NoSuchElementException.class, () -> service.apagar(1L, 21L));
+            assertThrows(NoSuchElementException.class, () -> service.apagar(1L, 21L, DestinoLivros.MOVER));
             verify(estanteRepository, never()).delete(any());
         }
 
@@ -256,7 +257,7 @@ class EstanteServiceAgenteTest {
         @Tag("derivado")
         @DisplayName("S6 (derivado): apagar estante inexistente lança NoSuchElementException e nada é apagado")
         void apagarInexistente() {
-            assertThrows(NoSuchElementException.class, () -> service.apagar(1L, 999L));
+            assertThrows(NoSuchElementException.class, () -> service.apagar(1L, 999L, DestinoLivros.MOVER));
             verify(estanteRepository, never()).delete(any());
         }
     }

@@ -1,8 +1,10 @@
 package br.com.virabrequim.database_service.controller;
 
 import br.com.virabrequim.database_service.config.WebConfig;
+import br.com.virabrequim.database_service.domain.DestinoLivros;
 import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
+import br.com.virabrequim.database_service.dto.AtualizacaoEstante;
 import br.com.virabrequim.database_service.dto.EstanteResposta;
 import br.com.virabrequim.database_service.dto.LivroResumo;
 import br.com.virabrequim.database_service.dto.NomeEstante;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -72,16 +75,21 @@ public class EstanteController {
     }
 
     @PatchMapping("/usuario/{usuarioId}/estante/{estanteId}")
-    public EstanteResposta renomear(@PathVariable Long usuarioId, @PathVariable Long estanteId,
-            @Valid @RequestBody NomeEstante nomeEstante) {
-        EstanteNode estante = estanteService.renomear(usuarioId, estanteId, nomeEstante.nome());
+    public EstanteResposta atualizar(
+            @PathVariable Long usuarioId,
+            @PathVariable Long estanteId,
+            @Valid @RequestBody AtualizacaoEstante dados
+    ) {
+        EstanteNode estante = estanteService.atualizar(usuarioId, estanteId, dados.nome());
         return resposta(usuarioId, estante);
     }
 
-    // Os livros da estante apagada vão para a padrão (regra do service)
+    // ?livros=mover (padrão): os livros vão para a estante padrão
+    // ?livros=apagar: os livros são apagados junto, menos os emprestados (que vão para a padrão)
     @DeleteMapping("/usuario/{usuarioId}/estante/{estanteId}")
-    public ResponseEntity<Void> apagar(@PathVariable Long usuarioId, @PathVariable Long estanteId) {
-        estanteService.apagar(usuarioId, estanteId);
+    public ResponseEntity<Void> apagar(@PathVariable Long usuarioId, @PathVariable Long estanteId,
+            @RequestParam(name = "livros", defaultValue = "mover") DestinoLivros destino) {
+        estanteService.apagar(usuarioId, estanteId, destino);
         return ResponseEntity.noContent().build();
     }
 
