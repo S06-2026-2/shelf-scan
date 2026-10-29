@@ -96,10 +96,14 @@ Spec: `EstanteService.md` (a estante virtual usa o `EmprestimoService.md`).
 | --- | --- | --- | --- | --- |
 | `GET` | `/usuario/{usuarioId}/estante` | — | `200` `Estante[]` (reais + a virtual por último) | `404` usuário |
 | `POST` | `/usuario/{usuarioId}/estante` | `NomeEstante` | `201` `Estante` | `400` nome · `404` · `409` nome repetido |
-| `PATCH` | `/usuario/{usuarioId}/estante/{estanteId}` | `NomeEstante` | `200` `Estante` | `400` · `404` · `409` nome repetido |
-| `DELETE` | `/usuario/{usuarioId}/estante/{estanteId}` | — | `204` (livros vão para a padrão) | `404` · `409` é a padrão |
+| `PATCH` | `/usuario/{usuarioId}/estante/{estanteId}` | `AtualizacaoEstante` | `200` `Estante` | `400` · `404` · `409` nome repetido |
+| `DELETE` | `/usuario/{usuarioId}/estante/{estanteId}?livros=mover\|apagar` | — | `204` | `400` opção inválida · `404` · `409` é a padrão |
 | `GET` | `/usuario/{usuarioId}/estante/{estanteId}/livro` | — | `200` `LivroResumo[]` | `404` |
 | `GET` | `/usuario/{usuarioId}/emprestados-comigo` | — | `200` `LivroResumo[]` (conteúdo da estante virtual) | `404` |
+
+`livros` no DELETE da estante (padrão `mover`):
+- `mover`: todos os livros vão para a estante padrão.
+- `apagar`: os livros são apagados junto, **menos os emprestados** (empréstimo ativo), que vão para a estante padrão.
 
 ## Livros
 
@@ -175,6 +179,11 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 
 **`AtualizacaoBiblioteca`** (todos opcionais): `nome`, `email`, `endereco` (substitui o endereço inteiro),
 `horarioAbertura`, `horarioFechamento`, com as mesmas validações acima.
+
+**`AtualizacaoEstante`** (todos opcionais; campo ausente = não alterar)
+| Campo | Tipo | Validação |
+| --- | --- | --- |
+| `nome` | string | até 50 caracteres, não pode ser só espaços |
 
 **`NomeEstante`**
 | Campo | Tipo | Obrigatório | Validação |
