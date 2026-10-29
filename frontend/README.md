@@ -57,7 +57,7 @@ Copie `.env.example` para `.env.local` e ajuste (o `.env.local` não vai para o 
 | `VITE_DATABASE_API_URL` | Endereço do `database-service` já com o prefixo da API. No desenvolvimento, `/api/v1` (o Vite repassa para `http://localhost:8321`). Vazia = estante de exemplo | vazia |
 | `VITE_USUARIO_ID` | Id numérico do usuário no banco. Vazia = usuário de exemplo `teste-1` | vazia |
 
-**Contrato do OCR:** `services/ocr-service/docs/contrato-api.md` (ainda um esqueleto, com vários `TODO`). O front chama `POST {VITE_OCR_API_URL}/v1/extraction` (multipart com a foto; o nome do campo, hoje `file`, ainda é `TODO` no contrato) e converte a resposta, que é uma lista de livros `{nome, volume, autores, editora}` mais o texto bruto e um indicador (`estruturado`, `não estruturado` ou `nenhum texto`). Essa conversão fica em `src/api/ocrContrato.ts`: quando os nomes definitivos forem fechados, só esse arquivo e o campo `CAMPO_DA_FOTO` em `src/api/ocr.ts` mudam.
+**Contrato do OCR:** `services/ocr-service/docs/contrato-api.md` e a rota em `services/ocr-service/api/main.py`. O front chama `POST {VITE_OCR_API_URL}/v1/extraction` (multipart com a foto no campo `image`) e converte a resposta, que é uma lista de livros `{nome, volume, autores, editora}` (o que não foi identificado vem `null`) mais o texto bruto e um indicador (`structured`, `unstructured` ou `no_text`, mostrados como `estruturado`, `não estruturado` e `nenhum texto`). Os erros vêm como `{code, message}` e o front age pelo `code`. Essa conversão fica em `src/api/ocrContrato.ts`; se o nome do campo mudar, só a constante `CAMPO_DA_FOTO` em `src/api/ocr.ts` muda.
 
 Enquanto o agente que estrutura o texto não existir, o OCR real devolve só o **texto bruto**; nesse caso a tela de confirmação mostra o texto lido e pede para preencher título e autor. Ano, gênero e sinopse não vêm do OCR (o enriquecimento é do `database-service`) e ficam para preencher à mão.
 
@@ -133,6 +133,7 @@ Cada componente ou página tem o seu `.css` ao lado. As cores estão em variáve
 
 - **Erro de CORS ao conectar o Telegram:** o `notification-service` só libera `http://localhost:5173` por padrão. Se a porta 5173 estiver ocupada, o Vite sobe em outra e as chamadas são bloqueadas. Suba com `npm run dev -- --port 5173 --strictPort` (para falhar em vez de trocar de porta) ou ajuste `CORS_ORIGENS_PERMITIDAS` no serviço.
 - **O cartão do Telegram mostra erro:** o `notification-service` não está no ar ou não tem os endpoints de vínculo.
+- **"Não foi possível falar com o serviço de OCR" com o serviço no ar:** o `ocr-service` só responde ao navegador para as origens listadas em `CORS_ORIGENS_PERMITIDAS` (padrão `http://localhost:5173`). Se o front estiver em outra porta ou endereço, inclua-o nessa variável do serviço.
 - **Alterei o `.env.local` e nada mudou:** as variáveis são lidas na subida; reinicie o `npm run dev`.
 - **A estante mostra "Não foi possível falar com o banco de dados":** o `database-service` não está no ar, ou `VITE_DATABASE_API_URL` não é `/api/v1` (sem o proxy do Vite, o navegador bloqueia a chamada por CORS).
 - **A estante mostra "Usuário não encontrado no banco":** o `VITE_USUARIO_ID` não existe. Os ids vêm do Neo4j e podem mudar se o banco for recriado; crie o usuário de novo.
@@ -153,5 +154,5 @@ O front é estático (`npm run build` gera o `dist/`). Num host como o Vercel:
 - A estante só mostra a estante padrão do usuário; não há telas para outras estantes nem para empréstimos (a API já os tem).
 - Amigos, solicitações, bibliotecas e recomendações continuam de exemplo (a API não tem essas relações).
 - Sem `VITE_DATABASE_API_URL` e `VITE_USUARIO_ID`, a estante e o "Salvar na estante" funcionam só em memória.
-- OCR simulado até existir a API do `ocr-service`.
+- Sem `VITE_OCR_API_URL` o OCR é simulado; com ela, o reconhecimento real depende do `ocr-service` no ar (`http://localhost:8301` pelo compose).
 - Sem testes unitários.

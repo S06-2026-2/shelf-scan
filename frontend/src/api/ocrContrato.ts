@@ -1,8 +1,8 @@
 import type { LivroReconhecido } from '../tipos/livro'
 
-// Formato da resposta do ocr-service, conforme services/ocr-srvice/docs/coentrato-api.md (seção 4.2)
-// e ocr/pipeline.py. PROVISÓRIO: os nomes definitivos ainda são TODO no contrato. Quando forem
-// fechados, só este arquivo precisa mudar.
+// Formato da resposta do ocr-service, conforme services/ocr-service/api/schemas.py e
+// services/ocr-service/docs/contrato-api.md. Se os nomes dos campos mudarem, só este arquivo
+// precisa mudar.
 export interface LivroDoContrato {
   nome: string | null
   volume: string | null
@@ -62,7 +62,7 @@ export function converterResposta(resposta: RespostaDoContrato): LeituraDaFoto {
 }
 
 // O contrato diz que o cliente age pelo identificador estável do erro, não pelo texto da mensagem.
-// O formato do corpo de erro ainda não está definido: aceita `code` na raiz ou dentro de `detail`.
+// O ocr-service responde `{"code", "message"}`; o `detail` é só reserva para erros do próprio FastAPI.
 export function codigoDoErro(corpo: unknown): string | undefined {
   if (typeof corpo !== 'object' || corpo === null) return undefined
   const { code, detail } = corpo as { code?: unknown; detail?: unknown }
