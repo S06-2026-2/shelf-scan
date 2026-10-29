@@ -12,6 +12,7 @@ specs em `docs/specs/database-service/` (citadas em cada rota).
 (Usuario)-[:HAS]->(Estante)<-[:STORED_IN]-(Livro)-[:LENT_TO {datas, leitura}]->(Usuario)
 (Usuario)-[:ESTANTE_PADRAO]->(Estante)        ← a padrão também tem HAS
 (Usuario:Biblioteca)                           ← BibliotecaNode extends UsuarioNode
+(Biblioteca)-[:FICA_EM]->(Cidade)-[:PERTENCE_A]->(Estado)   ← ids = códigos IBGE (7 e 2 dígitos)
 (Livro)-[:WRITTEN_BY]->(Autor)
 (Livro)-[:HAS_TAG]->(Tag)
 ```
@@ -66,15 +67,26 @@ Formato **Problem Details** (RFC 9457), que o Spring já suporta com `ProblemDet
 
 ## Usuários
 
-Spec: `UsuarioService.md`.
+Specs: `UsuarioNode.md`, `UsuarioService.md`, `BibliotecaService.md`.
+
+A separação entre usuário comum e biblioteca existe **só no CRUD**. As rotas de estante, livro e empréstimo
+(`/usuario/{usuarioId}/...`) aceitam os dois tipos.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
 | `POST` | `/usuario` | `NovoUsuario` | `201` `Usuario` | `400` nome/email inválido · `409` email já usado |
-| `POST` | `/biblioteca` | `NovoUsuario` | `201` `Usuario` (`tipo: "biblioteca"`) | `400` · `409` |
-| `GET` | `/usuario/{usuarioId}` | — | `200` `Usuario` | `404` |
+| `GET` | `/usuario/{usuarioId}` | — | `200` `Usuario` | `404` (também se o id for de uma biblioteca) |
+| `PATCH` | `/usuario/{usuarioId}` | `AtualizacaoUsuario` | `200` `Usuario` | `400` · `404` · `409` email já usado |
+| `DELETE` | `/usuario/{usuarioId}` | — | `204` | `404` (também se for biblioteca) |
+| `POST` | `/biblioteca` | `NovaBiblioteca` | `201` `Biblioteca` | `400` · `409` email já usado |
+| `GET` | `/biblioteca/{bibliotecaId}` | — | `200` `Biblioteca` | `404` (também se o id for de usuário comum) |
+| `PATCH` | `/biblioteca/{bibliotecaId}` | `AtualizacaoBiblioteca` | `200` `Biblioteca` | `400` · `404` · `409` |
+| `DELETE` | `/biblioteca/{bibliotecaId}` | — | `204` | `404` |
 
-O usuário (e a biblioteca) já nasce com a estante padrão "Minha estante".
+- O usuário (e a biblioteca) já nasce com a estante padrão "Minha estante".
+- O email é único entre usuários **e** bibliotecas.
+- `PATCH`: campo ausente ou `null` = não alterar.
+- `GET /usuario/{id}` com id de biblioteca responde `404` com `detail` indicando `/biblioteca/{id}`.
 
 ## Estantes
 
@@ -136,6 +148,34 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 | `nome` | string | sim | `@NotBlank`, até 100 caracteres |
 | `email` | string | sim | `@NotBlank`, `@Email` |
 
+**`AtualizacaoUsuario`** (todos opcionais)
+| Campo | Tipo | Validação |
+| --- | --- | --- |
+| `nome` | string | até 100 caracteres, não pode ser só espaços |
+| `email` | string | `@Email` |
+
+**`NovaBiblioteca`**
+| Campo | Tipo | Obrigatório | Validação |
+| --- | --- | --- | --- |
+| `nome` | string | sim | `@NotBlank`, até 100 caracteres |
+| `email` | string | sim | `@NotBlank`, `@Email` |
+| `endereco` | `Endereco` | sim | |
+| `horarioAbertura` | string | não | `"HH:mm"` (provisório; pode virar horário de verdade) |
+| `horarioFechamento` | string | não | `"HH:mm"` |
+
+**`Endereco`**
+| Campo | Tipo | Obrigatório | Validação |
+| --- | --- | --- | --- |
+| `logradouro` | string | sim | até 150 caracteres |
+| `numero` | string | não | até 10 caracteres (`"s/n"`, `"510A"`) |
+| `cep` | string | não | `00000-000` ou `00000000` |
+| `cidadeCodigoIbge` | int | sim | 7 dígitos; os 2 primeiros são o código do estado |
+| `cidadeNome` | string | sim | usado só se a cidade ainda não estiver cadastrada |
+| `estadoSigla` | string | sim | 2 letras |
+
+**`AtualizacaoBiblioteca`** (todos opcionais): `nome`, `email`, `endereco` (substitui o endereço inteiro),
+`horarioAbertura`, `horarioFechamento`, com as mesmas validações acima.
+
 **`NomeEstante`**
 | Campo | Tipo | Obrigatório | Validação |
 | --- | --- | --- | --- |
@@ -177,7 +217,20 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 ```json
 { "id": 1, "nome": "Ana Souza", "email": "ana@email.com", "tipo": "usuario", "estantePadraoId": 10 }
 ```
-`tipo` é `"usuario"` ou `"biblioteca"`.
+`tipo` é `"usuario"` ou `"biblioteca"` (nas rotas `/usuario` é sempre `"usuario"`; continua útil onde o dono de um
+livro pode ser uma biblioteca).
+
+**`Biblioteca`**
+```json
+{
+  "id": 2, "nome": "Biblioteca Inatel", "email": "contato@inatel.br", "estantePadraoId": 20,
+  "endereco": {
+    "logradouro": "Av. João de Camargo", "numero": "510", "cep": "37540-000",
+    "cidadeCodigoIbge": 3159605, "cidade": "Santa Rita do Sapucaí", "estado": "MG"
+  },
+  "horarioAbertura": "08:00", "horarioFechamento": "22:00"
+}
+```
 
 **`Estante`**
 ```json
@@ -237,7 +290,8 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 ## Fora desta versão
 
 - Autenticação (o usuário vem da rota).
-- Atualizar/apagar usuário; editar dados do livro depois de adicionado.
+- Editar dados do livro depois de adicionado.
+- O que acontece com estantes/livros/empréstimos ao apagar um usuário (hoje só o nó do usuário é apagado).
 - Relações entre usuários: `AMIGO` (usuários comuns) e `SEGUE` (cliente → biblioteca).
 - Recomendações e enriquecimento por agente de IA.
 - Paginação das listas.
