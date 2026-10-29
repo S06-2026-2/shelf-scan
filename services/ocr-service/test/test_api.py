@@ -402,3 +402,85 @@ class TestCors:
         assert response.status_code == 200
         assert response.headers.get("access-control-allow-origin") == origin
         assert "POST" in response.headers.get("access-control-allow-methods", "")
+
+
+# O catálogo do contrato (seção 4.3): cada code com o status em que ele aparece
+EXPECTED_ERRORS = [
+    (413, "file_too_large"),
+    (415, "unsupported_format"),
+    (422, "corrupt_image"),
+    (422, "image_too_large"),
+    (422, "image_too_small"),
+    (422, "invalid_request"),
+    (503, "service_not_ready"),
+    (500, "internal_error"),
+]
+
+
+class TestErrorDocs:
+    """
+        O /docs mostra os erros como a API responde de verdade ({code, message}),
+        com um exemplo por code, gerado das mesmas tabelas que a API usa para responder
+    """
+
+    @pytest.fixture
+    def openapi(self, client):
+        return client.get("/openapi.json").json()
+
+    def test_error_schema_is_code_and_message(self, openapi):
+        schema = openapi["components"]["schemas"]["ErrorResponse"]
+
+        assert set(schema["properties"]) == {"code", "message"}
+        assert set(schema["required"]) == {"code", "message"}
+
+    @pytest.mark.parametrize("status, code", EXPECTED_ERRORS, ids=[code for _, code in EXPECTED_ERRORS])
+    def test_each_code_is_an_example_of_its_status(self, openapi, status, code):
+        content = openapi["paths"]["/v1/extraction"]["post"]["responses"][str(status)]["content"]["application/json"]
+
+        assert content["schema"]["$ref"].endswith("/ErrorResponse")
+        assert content["examples"][code]["value"]["code"] == code
+        assert content["examples"][code]["value"]["message"]
+
+    def test_documented_errors_match_the_catalog_exactly(self, openapi):
+        """Nem a mais nem a menos: um code a mais ou a menos no /docs confundiria o front"""
+        responses = openapi["paths"]["/v1/extraction"]["post"]["responses"]
+        documented = {
+            (int(status), code)
+            for status, response in responses.items() if status != "200"
+            for code in response["content"]["application/json"]["examples"]
+        }
+
+        assert documented == set(EXPECTED_ERRORS)
+
+    def test_fastapi_default_422_is_gone(self, openapi):
+        """O 422 padrão do FastAPI ({"detail": [...]}) não é mais o que a API responde"""
+        assert "HTTPValidationError" not in openapi["components"]["schemas"]
+
+    def test_every_code_has_an_example_message(self):
+        assert set(main.ERROR_EXAMPLES) == set(main.ERROR_STATUS) | set(main.API_ERROR_STATUS)
+
+    def test_docs_follow_the_status_table(self, monkeypatch):
+        """Gerado da tabela: um code novo no catálogo aparece no /docs sem mexer na rota"""
+        monkeypatch.setitem(main.ERROR_STATUS, "erro_novo", 415)
+        monkeypatch.setitem(main.ERROR_EXAMPLES, "erro_novo", "mensagem de exemplo")
+
+        docs = main.error_docs()
+
+        assert docs[415]["content"]["application/json"]["examples"]["erro_novo"]["value"]["code"] == "erro_novo"
+
+    def test_handlers_use_the_api_status_table(self, client, monkeypatch):
+        """A resposta e a documentação leem o mesmo status: mudar a tabela muda os dois"""
+        monkeypatch.setitem(main.API_ERROR_STATUS, "service_not_ready", 599)
+        set_model_status("loading")
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 599
+
+    def test_health_documents_503_examples(self, openapi):
+        examples = openapi["paths"]["/health"]["get"]["responses"]["503"]["content"]["application/json"]["examples"]
+
+        assert {name: example["value"] for name, example in examples.items()} == {
+            "loading": {"status": "loading"},
+            "error": {"status": "error"},
+        }

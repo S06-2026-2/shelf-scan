@@ -18,6 +18,13 @@ class Book(BaseModel):
     editora: str | None
 
 
+class ErrorResponse(BaseModel):
+    """Corpo de todos os erros da API: o cliente age pelo code; a message é para o log"""
+
+    code: str
+    message: str
+
+
 class ExtractionMeta(BaseModel):
     """Como a leitura foi feita: qual detector e quanto tempo levou"""
 
