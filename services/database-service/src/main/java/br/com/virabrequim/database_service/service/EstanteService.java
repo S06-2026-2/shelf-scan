@@ -1,11 +1,15 @@
 package br.com.virabrequim.database_service.service;
 
 import br.com.virabrequim.database_service.domain.DestinoLivros;
+import br.com.virabrequim.database_service.domain.node.AutorNode;
 import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
+import br.com.virabrequim.database_service.domain.node.TagNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
+import br.com.virabrequim.database_service.repository.AutorRepository;
 import br.com.virabrequim.database_service.repository.EstanteRepository;
 import br.com.virabrequim.database_service.repository.LivroRepository;
+import br.com.virabrequim.database_service.repository.TagRepository;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,12 +26,16 @@ public class EstanteService {
     private final UsuarioRepository usuarioRepository;
     private final EstanteRepository estanteRepository;
     private final LivroRepository livroRepository;
+    private final AutorRepository autorRepository;
+    private final TagRepository tagRepository;
 
     public EstanteService(UsuarioRepository usuarioRepository, EstanteRepository estanteRepository,
-            LivroRepository livroRepository) {
+            LivroRepository livroRepository, AutorRepository autorRepository, TagRepository tagRepository) {
         this.usuarioRepository = usuarioRepository;
         this.estanteRepository = estanteRepository;
         this.livroRepository = livroRepository;
+        this.autorRepository = autorRepository;
+        this.tagRepository = tagRepository;
     }
 
     // As estantes vêm junto com o usuário (relacionamento HAS), incluindo a padrão
@@ -96,6 +104,7 @@ public class EstanteService {
         livrosParaMover.forEach(livro -> livro.setEstante(padrao));
         livroRepository.saveAll(livrosParaMover);
         livroRepository.deleteAll(livrosParaApagar);
+        apagarAutoresETagsOrfaos(livrosParaApagar);
 
         // Tirar da lista e salvar o usuário remove o HAS (o save sincroniza o grafo com o objeto)
         usuario.getEstantes().remove(estante);
@@ -121,6 +130,27 @@ public class EstanteService {
                 .anyMatch(estante -> estante.getNome().equalsIgnoreCase(nome));
         if (repetido) {
             throw new IllegalStateException("Já existe uma estante com o nome " + nome + ".");
+        }
+    }
+
+    // Autores e tags dos livros apagados que ficaram sem nenhum livro também são apagados
+    private void apagarAutoresETagsOrfaos(List<LivroNode> livrosApagados) {
+        List<Long> idsAutores = livrosApagados.stream()
+                .flatMap(livro -> livro.getAutores().stream())
+                .map(AutorNode::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        List<String> nomesTags = livrosApagados.stream()
+                .flatMap(livro -> livro.getTags().stream())
+                .map(TagNode::getNome)
+                .distinct()
+                .toList();
+        if (!idsAutores.isEmpty()) {
+            autorRepository.apagarOrfaos(idsAutores);
+        }
+        if (!nomesTags.isEmpty()) {
+            tagRepository.apagarOrfas(nomesTags);
         }
     }
 }
