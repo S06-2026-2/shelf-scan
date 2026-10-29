@@ -16,7 +16,7 @@ const FILTROS: { valor: Filtro; rotulo: string }[] = [
 ]
 
 export function Estante() {
-  const { livros } = useLivros()
+  const { livros, carregando, erro, recarregar } = useLivros()
   const [filtro, setFiltro] = useState<Filtro>('todos')
 
   const contar = (valor: Filtro) =>
@@ -33,30 +33,45 @@ export function Estante() {
         </Link>
       </header>
 
-      <div className="estante-filtros" role="group" aria-label="Filtrar por status de leitura">
-        {FILTROS.map((opcao) => (
-          <button
-            key={opcao.valor}
-            type="button"
-            className={opcao.valor === filtro ? 'filtro ativo' : 'filtro'}
-            aria-pressed={opcao.valor === filtro}
-            onClick={() => setFiltro(opcao.valor)}
-          >
-            {opcao.rotulo} · {contar(opcao.valor)}
+      {erro ? (
+        <div role="alert">
+          <p className="estante-vazia">{erro}</p>
+          <button type="button" className="botao" onClick={recarregar}>
+            Tentar de novo
           </button>
-        ))}
-      </div>
-
-      {visiveis.length === 0 ? (
-        <p className="estante-vazia">Nenhum livro com esse status ainda.</p>
+        </div>
+      ) : carregando ? (
+        <p className="estante-vazia" role="status">
+          Carregando a estante…
+        </p>
       ) : (
-        <ul className="estante-grade">
-          {visiveis.map((livro) => (
-            <li key={livro.id}>
-              <CartaoLivro livro={livro} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="estante-filtros" role="group" aria-label="Filtrar por status de leitura">
+            {FILTROS.map((opcao) => (
+              <button
+                key={opcao.valor}
+                type="button"
+                className={opcao.valor === filtro ? 'filtro ativo' : 'filtro'}
+                aria-pressed={opcao.valor === filtro}
+                onClick={() => setFiltro(opcao.valor)}
+              >
+                {opcao.rotulo} · {contar(opcao.valor)}
+              </button>
+            ))}
+          </div>
+
+          {visiveis.length === 0 ? (
+            <p className="estante-vazia">Nenhum livro com esse status ainda.</p>
+          ) : (
+            <ul className="estante-grade">
+              {visiveis.map((livro) => (
+                <li key={livro.id}>
+                  <CartaoLivro livro={livro} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )
