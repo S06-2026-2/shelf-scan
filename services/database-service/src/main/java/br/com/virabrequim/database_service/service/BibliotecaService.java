@@ -75,12 +75,12 @@ public class BibliotecaService {
         return bibliotecaRepository.save(biblioteca);
     }
 
-    // TODO (decisão de domínio): igual ao usuário comum, estantes e livros da biblioteca ficam órfãos
+    // TODO (decisão de domínio): igual ao usuário comum, livro emprestado da biblioteca apagada fica sem dono
     public void apagar(Long id) {
         if (!bibliotecaRepository.existsById(id)) {
             throw new NoSuchElementException("Biblioteca " + id + " não encontrada.");
         }
-        bibliotecaRepository.deleteById(id);
+        usuarioRepository.apagarComEstantesELivros(id);
     }
 
     private CidadeNode cidadeDoBanco(CidadeNode cidadeInformada) {

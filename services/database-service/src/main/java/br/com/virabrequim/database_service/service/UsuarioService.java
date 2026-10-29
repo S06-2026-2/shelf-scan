@@ -57,10 +57,10 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
-    // TODO (decisão de domínio): o deleteById apaga só o nó do usuário; as estantes e os livro dele ficam órfãos.
+    // TODO (decisão de domínio): livro emprestado de um usuário apagado fica sem dono.
     public void apagar(Long id) {
         buscarUsuarioComum(id);
-        usuarioRepository.deleteById(id);
+        usuarioRepository.apagarComEstantesELivros(id);
     }
 
     public UsuarioNode buscarDonoDoLivro(Long livroId) {
