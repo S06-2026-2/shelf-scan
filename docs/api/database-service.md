@@ -111,14 +111,28 @@ Spec: `LivroService.md` e `LivroNode.md`.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `POST` | `/usuario/{usuarioId}/livro` | `NovoLivro` | `201` `Livro` | `400` título/páginas/leitura · `404` usuário ou estante |
+| `POST` | `/usuario/{usuarioId}/livro` | `NovoLivro` | `201` `Livro` | `400` título/páginas/status · `404` usuário ou estante |
 | `GET` | `/livro/{livroId}` | — | `200` `Livro` | `404` |
+| `PATCH` | `/usuario/{usuarioId}/livro/{livroId}` | `AtualizacaoLivro` | `200` `Livro` | `400` · `404` não é do usuário · `409` total de páginas menor que a página lida |
 | `PATCH` | `/usuario/{usuarioId}/livro/{livroId}/estante` | `{ "estanteId": 11 }` | `200` `Livro` | `404` livro ou estante não é do usuário |
-| `PUT` | `/usuario/{usuarioId}/livro/{livroId}/leitura` | `Leitura` | `200` `Livro` | `400` página inválida · `404` não é dono nem está com o livro |
+| `PUT` | `/usuario/{usuarioId}/livro/{livroId}/leitura` | `Leitura` | `200` `Livro` | `400` status ausente · `404` não é dono nem está com o livro |
 | `DELETE` | `/usuario/{usuarioId}/livro/{livroId}` | — | `204` | `404` · `409` livro emprestado |
 
 `PUT .../leitura` atualiza **a leitura de quem chama**: se for o dono, a do livro; se for quem está com o livro
-emprestado, a do empréstimo.
+emprestado, a do empréstimo. Uma leitura não sobrescreve a outra, e a leitura de cada empréstimo fica no histórico.
+
+Regras de páginas e leitura:
+- **Sem total de páginas**: `paginas` `0` ou ausente (guardado como `null`). A página lida não tem limite e a
+  porcentagem vem `null`.
+- **Página lida inválida em `"lendo"`** (ausente, negativa ou maior que o total) vira `0`, **sem erro**, no cadastro e
+  no `PUT .../leitura` (pode mudar no futuro).
+- **Mudar o total de páginas** (`PATCH`): livro `"lido"` acompanha o novo total; livro `"lendo"` com página lida maior
+  que o novo total dá `409`. Vale para a leitura do dono e a do empréstimo ativo; o histórico não é alterado.
+
+Autores e tags:
+- São **reaproveitados** entre livros. Autor: pelo nome com espaços normalizados, sem diferenciar maiúsculas
+  (acentos contam). Tag: pelo nome sem acentos, em minúsculas; a resposta mostra a forma do primeiro cadastro.
+- Autores e tags que ficam **sem nenhum livro são apagados** (ao editar ou apagar livros, estantes e usuários).
 
 O `POST` de livro é o passo final do fluxo do OCR: o frontend recebe título/autor do ocr-service, o usuário confirma
 na tela "Confirmar livro" e o frontend envia o `NovoLivro` para cá.
@@ -198,16 +212,25 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 | `tags` | string[] | não | nomes das tags (ex.: gênero) |
 | `isbn` | string | não | |
 | `volume` | string | não | |
-| `paginas` | int | não | `@Positive` |
+| `paginas` | int | não | ≥ 0; `0` = sem total |
 | `sinopse` | string | não | |
 | `estanteId` | long | não | sem ela, vai para a estante padrão |
 | `leitura` | `Leitura` | não | leitura inicial do dono |
+
+**`AtualizacaoLivro`** (todos opcionais; campo ausente = não alterar)
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `titulo` | string | não pode ser só espaços |
+| `autores` | string[] | substitui a lista inteira (`[]` remove todos) |
+| `tags` | string[] | substitui a lista inteira (`[]` remove todas) |
+| `isbn`, `volume`, `sinopse` | string | `""` apaga o campo |
+| `paginas` | int | ≥ 0; `0` remove o total |
 
 **`Leitura`**
 | Campo | Tipo | Obrigatório | Observação |
 | --- | --- | --- | --- |
 | `status` | `"quero-ler"` \| `"lendo"` \| `"lido"` | sim | |
-| `paginaAtual` | int (≥ 0, até o total de páginas do livro) | só em `"lendo"` | ignorada nos outros status; a porcentagem é calculada pelo backend |
+| `paginaAtual` | int | só em `"lendo"` | inválida vira `0`; ignorada nos outros status; a porcentagem é calculada pelo backend |
 
 **`NovoEmprestimo`**
 | Campo | Tipo | Obrigatório | Observação |
@@ -299,9 +322,8 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 ## Fora desta versão
 
 - Autenticação (o usuário vem da rota).
-- Editar dados do livro depois de adicionado.
-- O que acontece com estantes/livros/empréstimos ao apagar um usuário (hoje só o nó do usuário é apagado).
+- Perda de histórico ao apagar: apagar um usuário ou um livro apaga os empréstimos (e as leituras guardadas neles).
 - Relações entre usuários: `AMIGO` (usuários comuns) e `SEGUE` (cliente → biblioteca).
 - Recomendações e enriquecimento por agente de IA.
 - Paginação das listas.
-- Reaproveitar autores/tags pelo nome.
+- Diferenciar autores homônimos (hoje o mesmo nome é o mesmo autor).
