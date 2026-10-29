@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.controller;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -34,6 +35,14 @@ public class TratadorDeErros extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ProblemDetail conflito(IllegalStateException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    // Mudança: violação de constraint do Neo4j (hoje só a de email único) vira 409 em vez de 500. Só acontece quando
+    // duas requisições passam juntas pelo existsByEmail; a mensagem do banco não é repassada ao cliente.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail violacaoDeRestricao(DataIntegrityViolationException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Já existe um registro com esses dados (ex.: email em uso).");
     }
 
     // Stubs do TDD (métodos ainda não implementados) respondem 501 em vez de 500
