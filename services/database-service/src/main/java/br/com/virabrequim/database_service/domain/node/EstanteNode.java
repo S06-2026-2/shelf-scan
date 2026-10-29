@@ -23,6 +23,13 @@ public class EstanteNode {
     private String nome;
 
     public EstanteNode(String nome){
-        this.nome = nome;
+        setNome(nome);
+    }
+
+    public void setNome(String nome) {
+        if (nome == null || nome.isBlank()) {
+            throw new IllegalArgumentException("O nome da estante é obrigatório.");
+        }
+        this.nome = nome.strip();
     }
 }
