@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.domain.relationship;
 
+import br.com.virabrequim.database_service.domain.RegrasLeitura;
 import br.com.virabrequim.database_service.domain.StatusLeitura;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import lombok.Getter;
@@ -76,9 +77,34 @@ public class EmprestimoRelationship {
         return false;
     }
 
+    // Leitura de quem pegou o livro, com as mesmas regras da leitura do dono (página inválida em LENDO vira 0).
+    // A relação não acessa o livro, por isso recebe o total de páginas. Empréstimo devolvido não muda mais (R20).
+    public void atualizarLeitura(StatusLeitura status, Integer paginaAtual, Integer totalPaginas, LocalDate hoje) {
+        if (isDevolvido()) {
+            throw new IllegalStateException("Empréstimo já devolvido: a leitura não pode mais ser alterada.");
+        }
+        if (status == null) {
+            throw new IllegalArgumentException("O status da leitura é obrigatório.");
+        }
+        switch (status) {
+            case QUERO_LER -> {
+                this.paginaAtual = 0;
+                this.dataConclusaoLeitura = null;
+            }
+            case LENDO -> {
+                this.paginaAtual = RegrasLeitura.paginaLendo(paginaAtual, totalPaginas);
+                this.dataConclusaoLeitura = null;
+            }
+            case LIDO -> {
+                this.paginaAtual = totalPaginas;
+                this.dataConclusaoLeitura = hoje;
+            }
+        }
+        this.statusLeitura = status;
+    }
+
     // Calculada, não é campo guardado; a relação não acessa o livro, por isso recebe o total de páginas
     public Integer porcentagemLeitura(Integer totalPaginas) {
-        //TODO: criar (R21)
-        throw new UnsupportedOperationException();
+        return RegrasLeitura.porcentagem(statusLeitura, paginaAtual, totalPaginas);
     }
 }
