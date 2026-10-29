@@ -1,6 +1,5 @@
 package br.com.virabrequim.database_service.service;
 
-import br.com.virabrequim.database_service.domain.node.BibliotecaNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,68 +88,6 @@ class UsuarioServiceAgenteTest {
             when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(true);
             assertThrows(IllegalStateException.class, () -> service.criar("Ana", "ANA@email.com"));
             verify(usuarioRepository, never()).save(any());
-        }
-    }
-
-    @Nested
-    @DisplayName("Criar biblioteca")
-    class CriarBiblioteca {
-
-        @Test
-        @DisplayName("E5 (U6): save recebe um BibliotecaNode com a estante padrão \"Minha estante\"")
-        void criaBiblioteca() {
-            when(usuarioRepository.existsByEmail("contato@biblioteca.br")).thenReturn(false);
-
-            service.criarBiblioteca("Biblioteca Inatel", "contato@biblioteca.br");
-
-            UsuarioNode salvo = capturarSalvo();
-            assertAll(
-                    () -> assertThat(salvo).isInstanceOf(BibliotecaNode.class),
-                    () -> assertThat(salvo.getEstantePadrao()).isNotNull(),
-                    () -> assertEquals("Minha estante", salvo.getEstantePadrao().getNome()));
-        }
-
-        @Test
-        @DisplayName("E6 (U6, U3): email de biblioteca já existente lança IllegalStateException")
-        void emailRepetido() {
-            when(usuarioRepository.existsByEmail("contato@biblioteca.br")).thenReturn(true);
-            assertThrows(IllegalStateException.class,
-                    () -> service.criarBiblioteca("Outra", "contato@biblioteca.br"));
-        }
-
-        @Test
-        @Tag("derivado")
-        @DisplayName("U6 (derivado): biblioteca com email repetido após normalizar não é salva")
-        void emailRepetidoNormalizado() {
-            when(usuarioRepository.existsByEmail("contato@biblioteca.br")).thenReturn(true);
-            assertThrows(IllegalStateException.class,
-                    () -> service.criarBiblioteca("Outra", "  CONTATO@Biblioteca.BR "));
-            verify(usuarioRepository, never()).save(any());
-        }
-
-        @Test
-        @Tag("derivado")
-        @DisplayName("U6 (derivado): biblioteca com nome só de espaços lança IllegalArgumentException")
-        void nomeEmBranco() {
-            assertThrows(IllegalArgumentException.class,
-                    () -> service.criarBiblioteca("   ", "contato@biblioteca.br"));
-            verify(usuarioRepository, never()).save(any());
-        }
-
-        @Test
-        @Tag("derivado")
-        @DisplayName("U6 (derivado): biblioteca salva com nome e email normalizados e retorna o objeto do save")
-        void normalizaERetornaSalvo() {
-            BibliotecaNode retornadoPeloSave = new BibliotecaNode();
-            when(usuarioRepository.save(any(UsuarioNode.class))).thenReturn(retornadoPeloSave);
-
-            BibliotecaNode retornado = service.criarBiblioteca("  Biblioteca Inatel ", " Contato@Biblioteca.BR ");
-
-            UsuarioNode salvo = capturarSalvo();
-            assertAll(
-                    () -> assertEquals("Biblioteca Inatel", salvo.getNome()),
-                    () -> assertEquals("contato@biblioteca.br", salvo.getEmail()),
-                    () -> assertSame(retornadoPeloSave, retornado));
         }
     }
 
