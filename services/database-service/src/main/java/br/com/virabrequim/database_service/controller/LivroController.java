@@ -2,6 +2,7 @@ package br.com.virabrequim.database_service.controller;
 
 import br.com.virabrequim.database_service.config.WebConfig;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
+import br.com.virabrequim.database_service.dto.AtualizacaoLivro;
 import br.com.virabrequim.database_service.dto.Leitura;
 import br.com.virabrequim.database_service.dto.LivroResposta;
 import br.com.virabrequim.database_service.dto.MoverLivro;
@@ -37,16 +38,15 @@ public class LivroController {
     }
 
     @PostMapping("/usuario/{usuarioId}/livro")
-    public ResponseEntity<LivroResposta> adicionar(@PathVariable Long usuarioId,
-            @Valid @RequestBody NovoLivro novoLivro) {
-        LivroNode livro = livroService.adicionar(usuarioId, novoLivro.paraLivro(), novoLivro.estanteId());
-
-        // TODO(design): a leitura inicial não está no LivroService.adicionar (spec), então vai numa segunda chamada.
-        // Não é atômico: se a leitura for inválida, o livro já foi criado.
+    public ResponseEntity<LivroResposta> adicionar(
+            @PathVariable Long usuarioId,
+            @Valid @RequestBody NovoLivro novoLivro
+    ) {
+        // A leitura inicial é opcional e vai junto no adicionar (uma operação só)
         Leitura leitura = novoLivro.leitura();
-        if (leitura != null) {
-            livro = livroService.atualizarLeitura(usuarioId, livro.getId(), leitura.status(), leitura.paginaAtual());
-        }
+        LivroNode livro = livroService.adicionar(usuarioId, novoLivro.paraLivro(), novoLivro.estanteId(),
+                leitura == null ? null : leitura.status(),
+                leitura == null ? null : leitura.paginaAtual());
 
         URI local = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path(WebConfig.PREFIXO_API + "/livro/{livroId}")
@@ -59,6 +59,13 @@ public class LivroController {
     @GetMapping("/livro/{livroId}")
     public LivroResposta buscar(@PathVariable Long livroId) {
         return resposta(livroService.buscar(livroId));
+    }
+
+    // PATCH genérico dos dados do livro (só o dono). Estante e leitura têm rotas próprias
+    @PatchMapping("/usuario/{usuarioId}/livro/{livroId}")
+    public LivroResposta atualizar(@PathVariable Long usuarioId, @PathVariable Long livroId,
+            @Valid @RequestBody AtualizacaoLivro dados) {
+        return resposta(livroService.atualizar(usuarioId, livroId, dados));
     }
 
     @PatchMapping("/usuario/{usuarioId}/livro/{livroId}/estante")
