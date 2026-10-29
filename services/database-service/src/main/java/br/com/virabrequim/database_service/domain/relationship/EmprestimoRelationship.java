@@ -4,8 +4,10 @@ import br.com.virabrequim.database_service.domain.RegrasLeitura;
 import br.com.virabrequim.database_service.domain.StatusLeitura;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.springframework.data.annotation.PersistenceCreator;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.RelationshipProperties;
@@ -16,9 +18,14 @@ import java.time.temporal.ChronoUnit;
 
 @RelationshipProperties
 @Getter
+// TODO: a spec pede datas e leitura sem setter público, mas os testes do agente ainda montam os empréstimos com o
+//  construtor vazio e setters. Remover os dois quando os testes forem regenerados com os construtores.
 @Setter
+@NoArgsConstructor
 @ToString
 public class EmprestimoRelationship {
+    static final String SEM_DATA_PREVISTA = "Empréstimo sem data prevista de devolução";
+
     @Id
     @GeneratedValue
     private Long id;
@@ -31,14 +38,68 @@ public class EmprestimoRelationship {
     @ToString.Exclude
     private UsuarioNode usuario;
 
-    // Leitura de quem pegou o livro emprestado (spec R15–R20)
     private StatusLeitura statusLeitura;
     private Integer paginaAtual;
     private LocalDate dataConclusaoLeitura;
 
+    public EmprestimoRelationship(UsuarioNode usuario, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao) {
+        if (dataEmprestimo == null) {
+            throw new IllegalArgumentException("A data do empréstimo é obrigatória.");
+        }
+        if (dataPrevistaDevolucao == null) {
+            throw new IllegalArgumentException("A data prevista de devolução é obrigatória.");
+        }
+        if (!dataPrevistaDevolucao.isAfter(dataEmprestimo)) {
+            throw new IllegalArgumentException("A data prevista de devolução tem que ser depois da data do empréstimo.");
+        }
+        this.usuario = usuario;
+        this.dataEmprestimo = dataEmprestimo;
+        this.dataPrevistaDevolucao = dataPrevistaDevolucao;
+        this.statusLeitura = StatusLeitura.QUERO_LER;
+        this.paginaAtual = 0;
+    }
+
+    @PersistenceCreator
+    EmprestimoRelationship(Long id, LocalDate dataEmprestimo, LocalDate dataPrevistaDevolucao, LocalDate dataDevolucao,
+            UsuarioNode usuario, StatusLeitura statusLeitura, Integer paginaAtual, LocalDate dataConclusaoLeitura) {
+        this.id = id;
+        this.dataEmprestimo = dataEmprestimo;
+        this.dataPrevistaDevolucao = dataPrevistaDevolucao;
+        this.dataDevolucao = dataDevolucao;
+        this.usuario = usuario;
+        this.statusLeitura = statusLeitura;
+        this.paginaAtual = paginaAtual;
+        this.dataConclusaoLeitura = dataConclusaoLeitura;
+    }
+
+    // Novo empréstimo para quem já pegou o livro antes: continua a leitura do empréstimo anterior dessa pessoa
+    public void continuarLeitura(EmprestimoRelationship anterior) {
+        if (anterior.getStatusLeitura() == null) {
+            return;
+        }
+        this.statusLeitura = anterior.getStatusLeitura();
+        this.paginaAtual = anterior.getPaginaAtual();
+        this.dataConclusaoLeitura = anterior.getDataConclusaoLeitura();
+    }
+
+    public void registrarDevolucao(LocalDate dataDevolucao, LocalDate hoje) {
+        if (isDevolvido()) {
+            throw new IllegalStateException("O empréstimo já foi devolvido.");
+        }
+        if (dataDevolucao == null) {
+            throw new IllegalArgumentException("A data de devolução é obrigatória.");
+        }
+        if (dataEmprestimo != null && dataDevolucao.isBefore(dataEmprestimo)) {
+            throw new IllegalArgumentException("A data de devolução não pode ser antes da data do empréstimo.");
+        }
+        if (dataDevolucao.isAfter(hoje)) {
+            throw new IllegalArgumentException("A data de devolução não pode ser no futuro.");
+        }
+        this.dataDevolucao = dataDevolucao;
+    }
+
     public boolean isEmprestado(){
-        if(this.dataDevolucao == null) return true;
-        return false;
+        return this.dataDevolucao == null;
     }
 
     public boolean isDevolvido(){
@@ -46,18 +107,22 @@ public class EmprestimoRelationship {
     }
 
     public int diasParaVencimento(LocalDate hoje){
+        if (isDevolvido()) {
+            throw new IllegalStateException("O empréstimo já foi devolvido.");
+        }
+        if (this.dataPrevistaDevolucao == null) {
+            throw new IllegalStateException(SEM_DATA_PREVISTA);
+        }
         long dias = ChronoUnit.DAYS.between(hoje, this.dataPrevistaDevolucao);
-        int diasInt = Math.toIntExact(dias);
-        return diasInt;
+        return Math.toIntExact(dias);
     }
 
     public boolean isVencido(LocalDate hoje){
-        if(isEmprestado() && diasParaVencimento(hoje) < 0) return true;
-        return false;
+        return isEmprestado() && diasParaVencimento(hoje) < 0;
     }
 
     public boolean estaVencendo(LocalDate hoje){
-        if(this.isDevolvido()) throw new IllegalStateException("Emprestimo já está encerrado");
+        if(this.isDevolvido()) return false;
         if(this.isVencido(hoje)) return false;
 
         double PORCENTAGEM_PARA_VENCENDO = 0.15D;
@@ -78,7 +143,6 @@ public class EmprestimoRelationship {
     }
 
     // Leitura de quem pegou o livro, com as mesmas regras da leitura do dono (página inválida em LENDO vira 0).
-    // A relação não acessa o livro, por isso recebe o total de páginas. Empréstimo devolvido não muda mais (R20).
     public void atualizarLeitura(StatusLeitura status, Integer paginaAtual, Integer totalPaginas, LocalDate hoje) {
         if (isDevolvido()) {
             throw new IllegalStateException("Empréstimo já devolvido: a leitura não pode mais ser alterada.");
@@ -101,6 +165,11 @@ public class EmprestimoRelationship {
             }
         }
         this.statusLeitura = status;
+    }
+
+    // Usado pelo LivroNode.setPaginas quando o total de páginas do livro muda (a página já vem validada por ele)
+    public void acompanharNovoTotal(Integer novaPaginaAtual) {
+        this.paginaAtual = novaPaginaAtual;
     }
 
     // Calculada, não é campo guardado; a relação não acessa o livro, por isso recebe o total de páginas
