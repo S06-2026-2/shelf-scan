@@ -157,6 +157,25 @@ class UsuarioServiceAgenteTest {
             assertThrows(IllegalArgumentException.class, () -> service.criar(nome, "ana@email.com"));
             verify(usuarioRepository, never()).existsByEmail(anyString());
         }
+
+        @Test
+        @DisplayName("E1 (U3): save recebe um UsuarioNode, não uma BibliotecaNode")
+        void salvaUsuarioComum() {
+            when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(false);
+            service.criar("  Ana Souza ", "  Ana@Email.COM ");
+            UsuarioNode salvo = capturarSalvo();
+            assertAll(
+                    () -> assertEquals(UsuarioNode.class, salvo.getClass()),
+                    () -> assertThat(salvo).isNotInstanceOf(BibliotecaNode.class));
+        }
+
+        @ParameterizedTest(name = "Caso de borda: email [{0}] não consulta existsByEmail")
+        @DisplayName("Caso de borda (U1): email inválido não consulta existsByEmail")
+        @CsvSource(value = {"NULL", "'  '"}, nullValues = "NULL")
+        void emailInvalidoNaoConsulta(String email) {
+            assertThrows(IllegalArgumentException.class, () -> service.criar("Ana", email));
+            verify(usuarioRepository, never()).existsByEmail(any());
+        }
     }
 
     @Nested

@@ -69,6 +69,28 @@ class CidadeNodeAgenteTest {
         assertEquals(codigo, new CidadeNode(codigo, "Cidade", estado).getCodigoIbge());
     }
 
+    @Test
+    @DisplayName("C4 (derivado): com código e nome inválidos, a exceção é a do código")
+    @Tag("derivado")
+    void codigoValidadoAntesDoNome() {
+        IllegalArgumentException doCodigo = assertThrows(IllegalArgumentException.class,
+                () -> new CidadeNode(null, "Santa Rita do Sapucaí", mg));
+        IllegalArgumentException dosDois = assertThrows(IllegalArgumentException.class,
+                () -> new CidadeNode(null, null, null));
+        assertEquals(doCodigo.getMessage(), dosDois.getMessage());
+    }
+
+    @Test
+    @DisplayName("C4 (derivado): com nome e estado inválidos, a exceção é a do nome")
+    @Tag("derivado")
+    void nomeValidadoAntesDoEstado() {
+        IllegalArgumentException doNome = assertThrows(IllegalArgumentException.class,
+                () -> new CidadeNode(3159605, null, mg));
+        IllegalArgumentException dosDois = assertThrows(IllegalArgumentException.class,
+                () -> new CidadeNode(3159605, null, null));
+        assertEquals(doNome.getMessage(), dosDois.getMessage());
+    }
+
     @ParameterizedTest(name = "C5 (derivado): codigoDoEstado({0}) = {1}")
     @DisplayName("C5 (derivado): codigoDoEstado nos limites do código da cidade")
     @Tag("derivado")
