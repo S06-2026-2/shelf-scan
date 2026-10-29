@@ -10,7 +10,7 @@ import java.util.Optional;
 @Repository
 public interface UsuarioRepository extends Neo4jRepository<UsuarioNode, Long> {
 
-    // Query derivada do nome do método: MATCH (u:Usuario {email: $email}) RETURN count(u) > 0
+    // Query derivada do nome do métódo: MATCH (u:Usuario {email: $email}) RETURN count(u) > 0
     boolean existsByEmail(String email);
 
     // O dono é derivado do caminho Livro -> Estante <- Usuario
