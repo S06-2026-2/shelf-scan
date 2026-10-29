@@ -30,7 +30,10 @@ service).
 
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
-| `LivroNode()` | Livro novo, sem relacionamentos | N1 |
+| `LivroNode()` | Livro vazio, sem validação (usado pelo SDN e nos testes) | N1 |
+| `LivroNode(String titulo)` | Livro novo com título válido | N1, N11 |
+| `void setTitulo(String titulo)` | Altera o título | N11 |
+| `void setPaginas(Integer paginas)` | Altera o total de páginas; a leitura acompanha | N12–N14 |
 | `Optional<EmprestimoRelationship> emprestimoAtivo()` | O empréstimo em andamento, se houver | N2, N3 |
 | `boolean isEmprestado()` | Se o livro está emprestado agora | N4 |
 | `void atualizarLeitura(StatusLeitura status, Integer paginaAtual, LocalDate hoje)` | Atualiza a leitura do dono | N5–N9 |
@@ -63,14 +66,28 @@ service).
 - **N5.** `status` é obrigatório. `atualizarLeitura(null, ...)` lança `IllegalArgumentException`.
 - **N6.** `QUERO_LER`: a página atual passa a ser `0` e a data de conclusão `null`. A `paginaAtual` recebida é
   ignorada.
-- **N7.** `LENDO`: a página atual é obrigatória e não pode ser negativa (`0` é aceito: começou agora). Se o livro
-  tiver o número de páginas (`paginas` não `null`), a página atual não pode passar dele. `null`, negativa ou maior que
-  `paginas` lança `IllegalArgumentException`. Sem `paginas`, não há limite superior. A data de conclusão passa a ser
-  `null`.
+- **N7.** `LENDO`: a página atual recebida é usada se for válida: não negativa (`0` é aceito: começou agora) e, se o
+  livro tiver o número de páginas (`paginas` não `null`), não maior que ele. Sem `paginas`, não há limite superior.
+  Página **inválida** (`null`, negativa ou maior que `paginas`) **não dá erro**: a página atual passa a ser `0`. A data
+  de conclusão passa a ser `null`.
 - **N8.** `LIDO`: a página atual passa a ser o número de páginas do livro (`null` se ele não tiver) e a data de
   conclusão passa a ser `hoje`. A `paginaAtual` recebida é ignorada. Marcar como `LIDO` um livro que já estava `LIDO`
   atualiza a data de conclusão para `hoje` (releitura).
-- **N9.** Quando `atualizarLeitura` lança exceção, nada muda: status, página atual e data continuam como estavam.
+- **N9.** Quando `atualizarLeitura` lança exceção (status `null`), nada muda: status, página atual e data continuam
+  como estavam.
+
+**Título e páginas**
+
+- **N11.** O título é obrigatório: `null`, vazio ou só com espaços lança `IllegalArgumentException`, e os espaços nas
+  pontas são removidos. Vale no construtor `LivroNode(String titulo)` e no `setTitulo`; com título inválido, o título
+  atual não muda.
+- **N12.** `setPaginas`: `null` ou `0` = sem total de páginas (guardado como `null`). Negativo lança
+  `IllegalArgumentException`. Positivo é guardado.
+- **N13.** Ao mudar o total, a leitura do dono acompanha: `LIDO` passa a ter página atual = novo total (ou `null`, se
+  ficar sem total); `LENDO` com página atual **maior** que o novo total lança `IllegalStateException` (igual é
+  permitido); sem total não há limite. `QUERO_LER` e leitura vazia não mudam. A mesma regra vale para a leitura do
+  **empréstimo ativo** (`emprestimoAtivo()`); empréstimos devolvidos não são verificados nem alterados.
+- **N14.** `setPaginas` verifica tudo antes de alterar: se lançar exceção, nem o total nem as leituras mudam.
 
 **Porcentagem de leitura**
 
@@ -112,8 +129,8 @@ Nos exemplos, **hoje = 10/03/2026**.
 | E10 | `atualizarLeitura(LENDO, 200, hoje)` | `LENDO` | 200 | 100 | `null` | N7, N10 |
 | E11 | `atualizarLeitura(LIDO, 30, hoje)` | `LIDO` | 200 | 100 | 10/03/2026 | N8, N10 |
 
-- **E12 (N7, N9).** Quando chamo `atualizarLeitura(LENDO, null, hoje)`, `atualizarLeitura(LENDO, -1, hoje)` ou
-  `atualizarLeitura(LENDO, 201, hoje)`, Então `IllegalArgumentException`, e a leitura continua vazia.
+- **E12 (N7).** Quando chamo `atualizarLeitura(LENDO, null, hoje)`, `atualizarLeitura(LENDO, -1, hoje)` ou
+  `atualizarLeitura(LENDO, 201, hoje)`, Então fica `LENDO` na página `0`, sem exceção.
 - **E13 (N5, N9).** Dado livro `LENDO` na página 80, Quando chamo `atualizarLeitura(null, 90, hoje)`, Então
   `IllegalArgumentException`, e o livro continua `LENDO` na página 80.
 - **E14 (N7).** Dado livro `LIDO` concluído em 01/03/2026, Quando chamo `atualizarLeitura(LENDO, 10, hoje)`, Então
@@ -128,14 +145,28 @@ Nos exemplos, **hoje = 10/03/2026**.
 | E16 | `atualizarLeitura(LENDO, 500, hoje)` | `LENDO` | 500 | `null` | `null` | N7, N10 |
 | E17 | `atualizarLeitura(LIDO, 30, hoje)` | `LIDO` | `null` | 100 | 10/03/2026 | N8, N10 |
 
-- **E18 (N7).** Quando chamo `atualizarLeitura(LENDO, -1, hoje)`, Então `IllegalArgumentException`.
+- **E18 (N7).** Quando chamo `atualizarLeitura(LENDO, -1, hoje)`, Então fica `LENDO` na página `0`.
 
-**Número de páginas alterado depois** (livro `LENDO` na página 150, e depois `paginas` passa de 200 para 100)
+**Título e número de páginas**
 
-- **E19 (N10).** Quando chamo `getPorcentagemLeitura()`, Então `100` (150 * 100 / 100 = 150, limitado a 100).
+- **E19 (N13, N14).** Dado livro de 200 páginas `LENDO` na página 150, Quando chamo `setPaginas(100)`, Então
+  `IllegalStateException`, e o livro continua com 200 páginas, `LENDO` na página 150.
+- **E20 (N13).** Dado livro de 200 páginas `LENDO` na página 150, Quando chamo `setPaginas(150)` ou
+  `setPaginas(300)`, Então o total muda e a página atual continua 150.
+- **E21 (N13).** Dado livro de 200 páginas `LIDO` (página 200), Quando chamo `setPaginas(180)`, Então a página atual
+  passa a ser 180; Quando chamo `setPaginas(0)`, Então `paginas` e a página atual ficam `null` e a porcentagem `100`.
+- **E22 (N12).** `setPaginas(0)` e `setPaginas(null)` deixam `paginas` `null`; `setPaginas(-5)` lança
+  `IllegalArgumentException`.
+- **E23 (N13).** Dado livro de 200 páginas sem leitura, com empréstimo ativo `LENDO` na página 120, Quando chamo
+  `setPaginas(100)`, Então `IllegalStateException`; Quando chamo `setPaginas(120)`, Então o total muda.
+- **E24 (N13).** Dado livro de 200 páginas com um empréstimo **devolvido** `LENDO` na página 190, Quando chamo
+  `setPaginas(100)`, Então o total muda e a leitura do empréstimo devolvido continua na página 190.
+- **E25 (N11).** Quando crio `new LivroNode("  Duna ")`, Então o título é "Duna"; `new LivroNode(" ")` e
+  `setTitulo(null)` lançam `IllegalArgumentException`.
 
 ## Casos de borda
 
+- **Página inválida não dá erro** em `LENDO`: vira 0 (E12, E18). Essa correção silenciosa pode mudar no futuro.
 - **Página 0 e a última página são válidas** em `LENDO` (E7, E10). `LENDO` na última página continua `LENDO`: o livro
   só fica `LIDO` quando isso for pedido explicitamente.
 - **A porcentagem é arredondada para baixo** (E9): 99,9% aparece como 99%, então só mostra 100% na última página.
@@ -149,6 +180,6 @@ Nos exemplos, **hoje = 10/03/2026**.
 - Quem é o dono do livro (derivado pelo caminho `Livro → Estante ← Usuario`, consultado no repositório).
 - Regra de "um empréstimo ativo por livro" na hora de emprestar: é do `EmprestimoService`. Aqui só se trata o dado
   inconsistente (N3).
-- Validação dos dados da obra (título, ISBN, páginas): é do `LivroService`.
+- Validação de ISBN e volume.
 - Ordem da lista de empréstimos.
 - Serialização para JSON / DTOs da API.

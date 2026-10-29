@@ -4,8 +4,10 @@ import br.com.virabrequim.database_service.domain.DestinoLivros;
 import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
+import br.com.virabrequim.database_service.repository.AutorRepository;
 import br.com.virabrequim.database_service.repository.EstanteRepository;
 import br.com.virabrequim.database_service.repository.LivroRepository;
+import br.com.virabrequim.database_service.repository.TagRepository;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -73,7 +75,8 @@ class EstanteServiceAgenteTest {
         usuarioRepository = mock(UsuarioRepository.class);
         estanteRepository = mock(EstanteRepository.class);
         livroRepository = mock(LivroRepository.class);
-        service = new EstanteService(usuarioRepository, estanteRepository, livroRepository);
+        service = new EstanteService(usuarioRepository, estanteRepository, livroRepository,
+                mock(AutorRepository.class), mock(TagRepository.class));
 
         ana = usuario(1L, "Ana", estante(10L, "Minha estante"), estante(11L, "Quarto"), estante(12L, "Sala"));
         bruno = usuario(2L, "Bruno", estante(20L, "Minha estante"), estante(21L, "Quarto"));

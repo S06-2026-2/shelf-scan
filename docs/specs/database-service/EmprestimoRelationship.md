@@ -120,13 +120,13 @@ até ser criado (pode começar como stub com `throw new UnsupportedOperationExce
 - **R16.** `status` é obrigatório. `atualizarLeitura(null, ...)` lança `IllegalArgumentException`.
 - **R17.** Por status:
   - `QUERO_LER`: a página atual passa a ser `0` e a data de conclusão `null`. A `paginaAtual` recebida é ignorada.
-  - `LENDO`: a página atual é obrigatória e não pode ser negativa (`0` é aceito). Se `totalPaginas` não for `null`, a
-    página atual não pode passar dele. `null`, negativa ou maior que `totalPaginas` lança
-    `IllegalArgumentException`. Com `totalPaginas` `null`, não há limite superior. A data de conclusão passa a ser
-    `null`.
+  - `LENDO`: a página atual recebida é usada se for válida: não negativa (`0` é aceito) e, se `totalPaginas` não for
+    `null`, não maior que ele. Com `totalPaginas` `null`, não há limite superior. Página **inválida** (`null`,
+    negativa ou maior que `totalPaginas`) **não dá erro**: a página atual passa a ser `0`. A data de conclusão passa a
+    ser `null`.
   - `LIDO`: a página atual passa a ser `totalPaginas` (`null` se ele for `null`) e a data de conclusão passa a ser
     `hoje`. A `paginaAtual` recebida é ignorada.
-- **R18.** Quando `atualizarLeitura` lança exceção, a leitura não muda.
+- **R18.** Quando `atualizarLeitura` lança exceção (devolvido ou status `null`), a leitura não muda.
 - **R19.** A leitura fica guardada depois da devolução: `registrarDevolucao` não altera status, página atual nem data
   de conclusão.
 - **R20.** Num empréstimo devolvido, `atualizarLeitura` lança `IllegalStateException` (a verificação de devolvido vem
@@ -212,10 +212,11 @@ Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escr
 | E29 | `atualizarLeitura(LIDO, 10, 200, hoje)` | `LIDO` | 200 | 100 | 10/03/2026 | R17, R21 |
 | E30 | `atualizarLeitura(QUERO_LER, 70, 200, hoje)` | `QUERO_LER` | 0 | 0 | `null` | R17, R21 |
 
-- **E31 (R16, R17, R18).** Dado a leitura `LENDO` na página 80, Quando chamo `atualizarLeitura(null, 90, 200, hoje)`,
-  `atualizarLeitura(LENDO, null, 200, hoje)`, `atualizarLeitura(LENDO, -1, 200, hoje)` ou
-  `atualizarLeitura(LENDO, 201, 200, hoje)`, Então `IllegalArgumentException`, e a leitura continua `LENDO` na
-  página 80.
+- **E31 (R16, R18).** Dado a leitura `LENDO` na página 80, Quando chamo `atualizarLeitura(null, 90, 200, hoje)`, Então
+  `IllegalArgumentException`, e a leitura continua `LENDO` na página 80.
+- **E31b (R17).** Dado a leitura `LENDO` na página 80, Quando chamo `atualizarLeitura(LENDO, null, 200, hoje)`,
+  `atualizarLeitura(LENDO, -1, 200, hoje)` ou `atualizarLeitura(LENDO, 201, 200, hoje)`, Então a leitura fica
+  `LENDO` na página `0`, sem exceção.
 - **E32 (R19).** Dado a leitura `LENDO` na página 120, Quando registro a devolução em 10/03/2026, Então a leitura
   continua `LENDO` na página 120.
 - **E33 (R20).** Dado o empréstimo devolvido em 05/03/2026, Quando chamo `atualizarLeitura(LIDO, null, 200, hoje)` ou

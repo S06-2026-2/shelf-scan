@@ -5,7 +5,9 @@ import br.com.virabrequim.database_service.domain.node.EstanteNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
+import br.com.virabrequim.database_service.repository.AutorRepository;
 import br.com.virabrequim.database_service.repository.LivroRepository;
+import br.com.virabrequim.database_service.repository.TagRepository;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import br.com.virabrequim.database_service.tempo.Calendario;
 import org.junit.jupiter.api.BeforeEach;
@@ -112,7 +114,8 @@ class LivroServiceAgenteTest {
         Calendario calendario = mock(Calendario.class);
         when(calendario.diaHoje()).thenReturn(HOJE);
         when(calendario.getClock()).thenReturn(RELOGIO);
-        service = new LivroService(usuarioRepository, livroRepository, calendario);
+        service = new LivroService(usuarioRepository, livroRepository, mock(AutorRepository.class),
+                mock(TagRepository.class), calendario);
 
         estante10 = new EstanteNode(10L, "Minha estante");
         estante11 = new EstanteNode(11L, "Quarto");
@@ -147,7 +150,7 @@ class LivroServiceAgenteTest {
             LivroNode retornadoPeloSave = new LivroNode();
             when(livroRepository.save(any(LivroNode.class))).thenReturn(retornadoPeloSave);
 
-            LivroNode retornado = service.adicionar(1L, livroNovo("  Memórias do Subsolo "), null);
+            LivroNode retornado = service.adicionar(1L, livroNovo("  Memórias do Subsolo "), null, null, null);
 
             LivroNode salvo = capturarSalvo();
             assertAll(
@@ -160,7 +163,7 @@ class LivroServiceAgenteTest {
         @Test
         @DisplayName("E2 (L4): com estante 11 informada, o livro vai para ela")
         void adicionaNaEstanteInformada() {
-            service.adicionar(1L, livroNovo("Livro"), 11L);
+            service.adicionar(1L, livroNovo("Livro"), 11L, null, null);
             assertEquals(11L, capturarSalvo().getEstante().getId());
         }
 
@@ -169,9 +172,9 @@ class LivroServiceAgenteTest {
         void estanteInvalida() {
             assertAll(
                     () -> assertThrows(NoSuchElementException.class,
-                            () -> service.adicionar(1L, livroNovo("Livro"), 20L)),
+                            () -> service.adicionar(1L, livroNovo("Livro"), 20L, null, null)),
                     () -> assertThrows(NoSuchElementException.class,
-                            () -> service.adicionar(1L, livroNovo("Livro"), 999L)),
+                            () -> service.adicionar(1L, livroNovo("Livro"), 999L, null, null)),
                     () -> verify(livroRepository, never()).save(any()));
         }
 
@@ -183,7 +186,7 @@ class LivroServiceAgenteTest {
             recebido.setEmprestimos(new ArrayList<>(List.of(emprestimoAtivoPara(bruno))));
             recebido.setDataDeAdicao(ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.of("America/Sao_Paulo")));
 
-            service.adicionar(1L, recebido, null);
+            service.adicionar(1L, recebido, null, null, null);
 
             LivroNode salvo = capturarSalvo();
             assertAll(
@@ -195,7 +198,7 @@ class LivroServiceAgenteTest {
         @Test
         @DisplayName("E5 (L2): livro null lança IllegalArgumentException")
         void livroNull() {
-            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, null, null));
+            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, null, null, null, null));
             verify(livroRepository, never()).save(any());
         }
 
@@ -203,7 +206,7 @@ class LivroServiceAgenteTest {
         @DisplayName("E5 (L2): título inválido")
         @CsvSource(value = {"NULL", "''", "'  '"}, nullValues = "NULL")
         void tituloInvalido(String titulo) {
-            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livroNovo(titulo), null));
+            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livroNovo(titulo), null, null, null));
             verify(livroRepository, never()).save(any());
         }
 
@@ -212,7 +215,7 @@ class LivroServiceAgenteTest {
         void paginasNull() {
             LivroNode livro = livroNovo("Livro");
             livro.setPaginas(null);
-            assertDoesNotThrow(() -> service.adicionar(1L, livro, null));
+            assertDoesNotThrow(() -> service.adicionar(1L, livro, null, null, null));
         }
 
         @ParameterizedTest(name = "E6: páginas = {0} lança IllegalArgumentException")
@@ -221,13 +224,13 @@ class LivroServiceAgenteTest {
         void paginasInvalidas(int paginas) {
             LivroNode livro = livroNovo("Livro");
             livro.setPaginas(paginas);
-            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livro, null));
+            assertThrows(IllegalArgumentException.class, () -> service.adicionar(1L, livro, null, null, null));
         }
 
         @Test
         @DisplayName("E7 (L1): usuário inexistente lança NoSuchElementException")
         void usuarioInexistente() {
-            assertThrows(NoSuchElementException.class, () -> service.adicionar(99L, livroNovo("Livro"), null));
+            assertThrows(NoSuchElementException.class, () -> service.adicionar(99L, livroNovo("Livro"), null, null, null));
         }
 
         @Test
@@ -236,7 +239,7 @@ class LivroServiceAgenteTest {
         void umaPagina() {
             LivroNode livro = livroNovo("Livro");
             livro.setPaginas(1);
-            assertDoesNotThrow(() -> service.adicionar(1L, livro, null));
+            assertDoesNotThrow(() -> service.adicionar(1L, livro, null, null, null));
         }
     }
 

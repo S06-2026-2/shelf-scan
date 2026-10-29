@@ -27,7 +27,7 @@ public record LivroResposta(
 
     public static LivroResposta de(LivroNode livro, UsuarioNode dono, LocalDate hoje) {
         List<String> tags = livro.getTags() == null ? List.of()
-                : livro.getTags().stream().map(TagNode::getNome).sorted().toList();
+                : livro.getTags().stream().map(TagNode::getNomeExibicao).sorted().toList();
 
         return new LivroResposta(
                 livro.getId(),

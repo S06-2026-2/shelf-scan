@@ -29,7 +29,7 @@ Nos testes, os repositórios são mocks (Mockito).
 
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
-| `EstanteService(UsuarioRepository usuarioRepository, EstanteRepository estanteRepository, LivroRepository livroRepository)` | Injeção pelo construtor | — |
+| `EstanteService(UsuarioRepository usuarioRepository, EstanteRepository estanteRepository, LivroRepository livroRepository, AutorRepository autorRepository, TagRepository tagRepository)` | Injeção pelo construtor | — |
 | `List<EstanteNode> listar(Long usuarioId)` | Estantes do usuário | S1, S2 |
 | `EstanteNode criar(Long usuarioId, String nome)` | Nova estante | S1, S3–S5 |
 | `EstanteNode atualizar(Long usuarioId, Long estanteId, String nome)` | Atualização parcial (PATCH) | S1, S3, S4, S6, S7 |
@@ -48,12 +48,15 @@ Colaboradores usados (mockados nos testes):
 | `LivroRepository.findIdsComEmprestimoAtivoByEstanteId(Long estanteId)` | `List<Long>` (ids dos livros da estante com empréstimo ativo) |
 | `LivroRepository.saveAll(Iterable<LivroNode> livros)` | os livros salvos |
 | `LivroRepository.deleteAll(Iterable<LivroNode> livros)` | `void` |
+| `AutorRepository.apagarOrfaos(Collection<Long> ids)` | `void` (apaga, entre esses, os autores sem nenhum livro) |
+| `TagRepository.apagarOrfas(Collection<String> nomes)` | `void` (apaga, entre essas, as tags sem nenhum livro) |
 
 Entidades:
 - `EstanteNode(String nome)`: valida o nome e remove os espaços nas pontas; `setNome` faz o mesmo (ver
   `EstanteNode.md`).
 - `UsuarioNode`: `List<EstanteNode> estantes` e `EstanteNode estantePadrao`.
-- `LivroNode`: `getId()` e `setEstante(EstanteNode estante)`.
+- `LivroNode`: `getId()`, `setEstante(EstanteNode estante)`, `getAutores()` (`AutorNode` com `getId()`) e
+  `getTags()` (`TagNode` com `getNome()`).
 
 ## Regras
 
@@ -77,7 +80,10 @@ Entidades:
   (`setEstante(padrão)`) e são salvos com `saveAll`. Nenhum livro é apagado.
 - **S10.** Com `destino = APAGAR`, os livros da estante **com empréstimo ativo** (ids em
   `findIdsComEmprestimoAtivoByEstanteId`) passam para a estante padrão e são salvos com `saveAll`; os **outros** são
-  apagados com `deleteAll`. Livro com empréstimo já devolvido não conta como emprestado.
+  apagados com `deleteAll`. Livro com empréstimo já devolvido não conta como emprestado. Depois do `deleteAll`, os ids
+  dos autores e os nomes das tags dos livros apagados (sem repetição) são passados para
+  `AutorRepository.apagarOrfaos` e `TagRepository.apagarOrfas`; com a lista vazia, o método correspondente não é
+  chamado. No destino `MOVER`, nenhum dos dois é chamado.
 - **S11.** Em qualquer destino, os livros são movidos (`saveAll`) e apagados (`deleteAll`) **antes** de a estante ser
   apagada. Depois, a estante sai da lista `estantes` do usuário, o usuário é salvo e a estante é apagada com
   `EstanteRepository.delete`. O método é `@Transactional`.
@@ -118,6 +124,9 @@ Usuário Bruno (id 2) com "Minha estante" (id 20, padrão) e "Quarto" (id 21).
   10 e é salvo com `saveAll`, A é apagado com `deleteAll`, ambos **antes** de `delete`, e a estante 11 é apagada.
 - **E16 (S10).** Dado `findAllByEstanteId(11L)` = livros A e B e `findIdsComEmprestimoAtivoByEstanteId(11L)` = lista
   vazia, Quando chamo `apagar(1L, 11L, APAGAR)`, Então A e B são apagados e nenhum livro vai para a estante 10.
+- **E16b (S10).** Dado o livro A (autor id 7, tag "romance") e o livro B (autor id 7, sem tags), sem empréstimos,
+  Quando chamo `apagar(1L, 11L, APAGAR)`, Então `apagarOrfaos([7])` e `apagarOrfas(["romance"])` são chamados depois
+  do `deleteAll`. Com `MOVER`, nenhum dos dois é chamado.
 - **E17 (S9, S11).** Dado `findAllByEstanteId(12L)` = lista vazia, Quando chamo `apagar(1L, 12L, MOVER)`, Então a
   estante 12 é apagada normalmente.
 - **E18 (S6).** Quando chamo `apagar(1L, 21L, MOVER)` (estante do Bruno) ou `apagar(1L, 999L, APAGAR)`, Então
