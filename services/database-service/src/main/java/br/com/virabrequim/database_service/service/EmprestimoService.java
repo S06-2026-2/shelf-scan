@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 // Spec: docs/specs/database-service/EmprestimoService.md
 // Stubs do TDD: a implementação vem depois dos testes gerados pelo agente
@@ -43,9 +44,11 @@ public class EmprestimoService {
         throw new UnsupportedOperationException();
     }
 
+    // Estante virtual "Emprestados comigo": livros de outras pessoas com empréstimo ativo para o usuário (M7)
     public List<LivroNode> listarEmprestadosPara(Long usuarioId) {
-        //TODO: criar (M7)
-        throw new UnsupportedOperationException();
+        usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new NoSuchElementException("Usuario " + usuarioId + " não encontrado."));
+        return livroRepository.findAllComEmprestimoAtivoPara(usuarioId);
     }
 
     public List<LivroNode> listarVencendo() {
