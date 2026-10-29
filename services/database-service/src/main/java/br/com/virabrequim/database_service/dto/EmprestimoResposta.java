@@ -33,8 +33,7 @@ public record EmprestimoResposta(
                 emprestimo.getDataDevolucao(),
                 ativo ? "ativo" : "devolvido",
                 ativo ? emprestimo.diasParaVencimento(hoje) : null,
-                // estaVencendo lança exceção em empréstimo devolvido
-                ativo && emprestimo.estaVencendo(hoje),
+                emprestimo.estaVencendo(hoje),
                 emprestimo.isVencido(hoje),
                 LeituraResposta.doMutuario(emprestimo, livro));
     }

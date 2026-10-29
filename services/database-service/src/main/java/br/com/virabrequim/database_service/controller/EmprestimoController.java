@@ -5,6 +5,7 @@ import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
 import br.com.virabrequim.database_service.dto.AlertaEmprestimo;
 import br.com.virabrequim.database_service.dto.Devolucao;
+import br.com.virabrequim.database_service.dto.EmprestimoDoUsuario;
 import br.com.virabrequim.database_service.dto.EmprestimoResposta;
 import br.com.virabrequim.database_service.dto.NovoEmprestimo;
 import br.com.virabrequim.database_service.service.EmprestimoService;
@@ -69,7 +70,23 @@ public class EmprestimoController {
         return EmprestimoResposta.de(emprestimos, livroService.buscar(livroId), calendario.diaHoje());
     }
 
-    // Para o notification-service
+    // Empréstimos ativos do usuário, dos dois lados (papel "dono" ou "mutuario")
+    @GetMapping("/usuario/{usuarioId}/emprestimo")
+    public List<EmprestimoDoUsuario> listarDoUsuario(@PathVariable Long usuarioId) {
+        return doUsuario(emprestimoService.listarAtivosDoUsuario(usuarioId), usuarioId);
+    }
+
+    @GetMapping("/usuario/{usuarioId}/emprestimo/vencendo")
+    public List<EmprestimoDoUsuario> listarVencendoDoUsuario(@PathVariable Long usuarioId) {
+        return doUsuario(emprestimoService.listarVencendoDoUsuario(usuarioId), usuarioId);
+    }
+
+    @GetMapping("/usuario/{usuarioId}/emprestimo/vencidos")
+    public List<EmprestimoDoUsuario> listarVencidosDoUsuario(@PathVariable Long usuarioId) {
+        return doUsuario(emprestimoService.listarVencidosDoUsuario(usuarioId), usuarioId);
+    }
+
+    // Para o notification-service: o banco todo
     @GetMapping("/emprestimo/vencendo")
     public List<AlertaEmprestimo> listarVencendo() {
         return alertas(emprestimoService.listarVencendo());
@@ -83,6 +100,14 @@ public class EmprestimoController {
     // O livro é buscado para a resposta ter o id e o total de páginas (a relação não conhece o livro)
     private EmprestimoResposta resposta(EmprestimoRelationship emprestimo, Long livroId) {
         return EmprestimoResposta.de(emprestimo, livroService.buscar(livroId), calendario.diaHoje());
+    }
+
+    private List<EmprestimoDoUsuario> doUsuario(List<LivroNode> livros, Long usuarioId) {
+        LocalDate hoje = calendario.diaHoje();
+        return livros.stream()
+                .map(livro -> EmprestimoDoUsuario.de(livro, usuarioService.buscarDonoDoLivro(livro.getId()),
+                        usuarioId, hoje))
+                .toList();
     }
 
     private List<AlertaEmprestimo> alertas(List<LivroNode> livros) {

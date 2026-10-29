@@ -25,6 +25,13 @@ public interface LivroRepository extends Neo4jRepository<LivroNode, Long> {
             RETURN DISTINCT id(l)""")
     List<Long> findIdsComEmprestimoAtivoPara(Long usuarioId);
 
+    // Livros do usuário (dono, pelo caminho Usuario -> Estante <- Livro) que estão emprestados para outra pessoa
+    @Query("""
+            MATCH (u:Usuario)-[:HAS]->(:Estante)<-[:STORED_IN]-(l:Livro)-[e:LENT_TO]->(:Usuario)
+            WHERE id(u) = $usuarioId AND e.dataDevolucao IS NULL
+            RETURN DISTINCT id(l)""")
+    List<Long> findIdsEmprestadosPor(Long usuarioId);
+
     // Livros da estante com empréstimo ativo (LENT_TO sem data de devolução)
     @Query("""
             MATCH (l:Livro)-[:STORED_IN]->(e:Estante)
@@ -42,5 +49,9 @@ public interface LivroRepository extends Neo4jRepository<LivroNode, Long> {
 
     default List<LivroNode> findAllComEmprestimoAtivoPara(Long usuarioId) {
         return findAllById(findIdsComEmprestimoAtivoPara(usuarioId));
+    }
+
+    default List<LivroNode> findAllEmprestadosPor(Long usuarioId) {
+        return findAllById(findIdsEmprestadosPor(usuarioId));
     }
 }

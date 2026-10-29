@@ -100,7 +100,7 @@ public class LivroNode {
 
         this.paginas = novoTotal;
         this.paginaAtual = novaPaginaDoDono;
-        ativo.ifPresent(emprestimo -> emprestimo.setPaginaAtual(novaPaginaDoEmprestimo));
+        ativo.ifPresent(emprestimo -> emprestimo.acompanharNovoTotal(novaPaginaDoEmprestimo));
     }
 
     // O empréstimo da lista que ainda não foi devolvido

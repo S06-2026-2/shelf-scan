@@ -146,11 +146,23 @@ Spec: `EmprestimoService.md` e `EmprestimoRelationship.md`.
 | `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | `NovoEmprestimo` | `201` `Emprestimo` | `400` data/mesmo usuário · `404` · `409` já emprestado |
 | `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo/devolucao` | `Devolucao` (opcional) | `200` `Emprestimo` | `400` data · `404` · `409` não está emprestado |
 | `GET` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | — | `200` `Emprestimo[]` (histórico, mais recente primeiro) | `404` |
+| `GET` | `/usuario/{usuarioId}/emprestimo` | — | `200` `EmprestimoDoUsuario[]` (ativos, dono e mutuário) | `404` |
+| `GET` | `/usuario/{usuarioId}/emprestimo/vencendo` | — | `200` `EmprestimoDoUsuario[]` | `404` |
+| `GET` | `/usuario/{usuarioId}/emprestimo/vencidos` | — | `200` `EmprestimoDoUsuario[]` | `404` |
 | `GET` | `/emprestimo/vencendo` | — | `200` `AlertaEmprestimo[]` | — |
 | `GET` | `/emprestimo/vencidos` | — | `200` `AlertaEmprestimo[]` | — |
 
 A devolução é um `POST` numa sub-rota (e não um `PATCH` no empréstimo) porque é uma **ação** com regra própria,
 não uma edição livre de campos. As rotas `/emprestimo/vencendo` e `/vencidos` são para o notification-service.
+
+- O empréstimo começa **hoje** e a data prevista tem que ser depois de hoje (prazo mínimo de 1 dia).
+- A leitura de quem pegou o livro começa em `quero-ler`, página 0. Se a mesma pessoa já pegou **este livro** antes,
+  a leitura continua de onde parou no último empréstimo dela (status, página e data de conclusão).
+- Só o dono empresta, devolve e vê o histórico; para outra pessoa o livro "não existe" (`404`).
+- `/usuario/{usuarioId}/emprestimo` (e `/vencendo`, `/vencidos`) lista só empréstimos **ativos** do usuário, dos dois
+  lados: livros dele que estão com outra pessoa (`papel: "dono"`) e livros que ele pegou (`papel: "mutuario"`),
+  do vencimento mais próximo para o mais distante. As rotas `/emprestimo/vencendo` e `/vencidos` sem usuário varrem o
+  banco todo (notification-service).
 
 ---
 
@@ -307,6 +319,17 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 }
 ```
 `estado` é `"ativo"` ou `"devolvido"`. Em empréstimo devolvido, `diasParaVencimento` é `null`.
+
+**`EmprestimoDoUsuario`**
+```json
+{
+  "papel": "mutuario", "livroId": 5, "titulo": "Dom Casmurro",
+  "dono": { "id": 1, "nome": "Ana" }, "mutuario": { "id": 2, "nome": "Bruno" },
+  "dataEmprestimo": "2026-03-10", "dataPrevistaDevolucao": "2026-03-12",
+  "diasParaVencimento": 2, "vencendo": true, "vencido": false
+}
+```
+`papel` é `"dono"` ou `"mutuario"`, sempre do ponto de vista do `usuarioId` da rota.
 
 **`AlertaEmprestimo`** (para o notification-service)
 ```json

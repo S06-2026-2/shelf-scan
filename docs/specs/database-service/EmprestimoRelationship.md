@@ -48,6 +48,8 @@ até ser criado (pode começar como stub com `throw new UnsupportedOperationExce
 | `void atualizarLeitura(StatusLeitura status, Integer paginaAtual, Integer totalPaginas, LocalDate hoje)` | Atualiza a leitura de quem pegou o livro | R16–R20 |
 | `StatusLeitura getStatusLeitura()` / `Integer getPaginaAtual()` / `LocalDate getDataConclusaoLeitura()` | Leitura de quem pegou o livro | R15–R20 |
 | `Integer porcentagemLeitura(Integer totalPaginas)` | Porcentagem calculada (não é campo guardado) | R21 |
+| `void continuarLeitura(EmprestimoRelationship anterior)` | Copia a leitura de um empréstimo anterior da mesma pessoa | R22 |
+| `void acompanharNovoTotal(Integer novaPaginaAtual)` | Usado pelo `LivroNode.setPaginas` quando o total de páginas muda (a página já vem calculada por ele) | — |
 
 `StatusLeitura` é um enum em `br.com.virabrequim.database_service.domain` com os valores `QUERO_LER`, `LENDO` e
 `LIDO`. As datas e os campos de leitura não têm setter público.
@@ -139,6 +141,12 @@ até ser criado (pode começar como stub com `throw new UnsupportedOperationExce
     a `100`;
   - `LENDO` com `totalPaginas` `null` → `null`.
 
+**Continuar a leitura**
+
+- **R22.** `continuarLeitura(anterior)` copia status, página atual e data de conclusão do empréstimo `anterior`. As datas
+  do empréstimo não mudam, e o `anterior` também não. Se o status do `anterior` for `null` (dado antigo do banco), nada
+  muda. Quem decide quando chamar (mesma pessoa, último empréstimo) é o `EmprestimoService` (M11).
+
 ## Exemplos
 
 Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escrito outro dia. Nas tabelas, a coluna
@@ -221,6 +229,11 @@ Nos exemplos, o parâmetro **hoje = 10/03/2026**, a não ser quando estiver escr
   continua `LENDO` na página 120.
 - **E33 (R20).** Dado o empréstimo devolvido em 05/03/2026, Quando chamo `atualizarLeitura(LIDO, null, 200, hoje)` ou
   `atualizarLeitura(null, null, 200, hoje)`, Então `IllegalStateException`.
+
+- **E37 (R22).** Dado um empréstimo anterior `LIDO` com conclusão em 20/02/2026 e um novo recém-criado, Quando chamo
+  `novo.continuarLeitura(anterior)`, Então o novo fica `LIDO`, página atual igual à do anterior e conclusão 20/02/2026.
+- **E38 (R22).** Dado um empréstimo anterior com status `null`, Quando chamo `novo.continuarLeitura(anterior)`, Então o
+  novo continua `QUERO_LER` na página 0.
 
 **Livro sem número de páginas** (`totalPaginas` = `null`)
 
