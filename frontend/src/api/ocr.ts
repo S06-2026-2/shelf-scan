@@ -7,15 +7,15 @@ import {
 } from './ocrContrato'
 
 // Endereço do ocr-service. Sem ele, o reconhecimento é simulado (modo demonstração).
-// Contrato: services/ocr-service/docs/contrato-api.md (ainda um esqueleto, com TODOs).
+// Contrato: services/ocr-service/docs/contrato-api.md; a rota está em services/ocr-service/api/main.py.
 const URL_OCR: string | undefined = import.meta.env.VITE_OCR_API_URL
 
 export const modoDemonstracao = !URL_OCR
 
 const ROTA = '/v1/extraction'
 
-// Nome do campo do arquivo no multipart: ainda TODO no contrato. Ajuste aqui quando for definido.
-const CAMPO_DA_FOTO = 'file'
+// Nome do campo do arquivo no multipart, como a rota do ocr-service o declara (api/main.py).
+const CAMPO_DA_FOTO = 'image'
 
 // A leitura leva de 6 a 10 s por capa; com a fila de até ~30 s do serviço, 60 s cobre o pior caso.
 const LIMITE_MS = 60_000
