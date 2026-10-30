@@ -1,0 +1,17 @@
+.avatar-pessoa {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.avatar-cor-1 { background: linear-gradient(155deg, #2e8562, #1b5a44); }
+.avatar-cor-2 { background: linear-gradient(155deg, #c48b3f, #93641f); }
+.avatar-cor-3 { background: linear-gradient(155deg, #5c7fe0, #3b58ae); }
+.avatar-cor-4 { background: linear-gradient(155deg, #b172d6, #7c4fc7); }
+.avatar-cor-5 { background: linear-gradient(155deg, #d67d63, #ae5a34); }
+.avatar-cor-6 { background: linear-gradient(155deg, #4fa8a0, #2c7972); }

@@ -1,0 +1,29 @@
+.selo {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.selo-lendo {
+  background: var(--status-reading-bg);
+  color: var(--status-reading);
+}
+
+.selo-lido {
+  background: var(--status-done-bg);
+  color: var(--status-done);
+}
+
+.selo-quero-ler {
+  background: var(--status-wishlist-bg);
+  color: var(--status-wishlist);
+}
+
+.selo-emprestado {
+  background: var(--status-loan-bg);
+  color: var(--status-loan);
+}

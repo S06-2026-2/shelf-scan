@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: jdbc:postgresql://localhost:8342/shelf_scan_cliente
+    username: notification_user
+    password: notification_pass
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    open-in-view: false
+
+
+server:
+  port: 8341
+
+telegram:
+  bot:
+    # Vazio = bot desativado (o serviço sobe normalmente sem ele)
+    token: ${TELEGRAM_BOT_TOKEN:}
+    # Usado para montar o link https://t.me/<username>?start=<código>
+    username: ${TELEGRAM_BOT_USERNAME:}
+  vinculo:
+    # Por quanto tempo o link "Conectar Telegram" continua valendo
+    validade-minutos: 15
+
+app:
+  cors:
+    # Origens do front autorizadas a chamar /telegram/** (separe várias por vírgula)
+    origens-permitidas: ${CORS_ORIGENS_PERMITIDAS:http://localhost:5173}
+
+llm:
+  # Vazio = agente conversacional desativado (o serviço sobe normalmente sem ele)
+  api-key: ${LLM_API_KEY:}
+  # Qualquer provedor compatível com a API da OpenAI (hoje: Groq, plano gratuito sem cartão)
+  url-base: ${LLM_URL_BASE:https://api.groq.com/openai/v1}
+  modelo-conversa: ${LLM_MODELO_CONVERSA:openai/gpt-oss-120b}
+  # "low", "medium" ou "high" para modelos que raciocinam (gpt-oss); vazio para os demais
+  esforco-de-raciocinio: ${LLM_ESFORCO_DE_RACIOCINIO:low}
+  # Pesquisa na web quando o modelo não conhece o livro. Só a Groq entende; desligue ao trocar de provedor.
+  busca-na-web: ${LLM_BUSCA_NA_WEB:true}
+  conversa:
+    max-tokens: 1000
+    mensagens-por-minuto: 4
+    turnos-no-historico: 4

@@ -1,0 +1,58 @@
+.cartao-livro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cartao-livro-capa {
+  position: relative;
+}
+
+.cartao-livro-selo {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+  border-radius: 6px;
+}
+
+.cartao-livro-titulo {
+  font-size: 0.88rem;
+}
+
+.cartao-livro-autor {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.cartao-livro-detalhe {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.cartao-livro-aviso {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--status-loan-bg);
+  color: var(--status-loan);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.progresso {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.progresso i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--status-reading);
+}

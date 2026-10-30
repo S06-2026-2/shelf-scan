@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: database-service
+
+  neo4j:
+    # Conecta em localhost:8340 quando rodar pela IDE, ou em bolt://neo4j:7687 dentro do Docker
+    uri: ${SPRING_NEO4J_URI:bolt://neo4j:7687}
+    authentication:
+      username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:shelfscan123}
+
+  # Configurações para logs e diagnósticos
+  data:
+    neo4j:
+      database: neo4j
+
+# Expõe endpoints de status da aplicação
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

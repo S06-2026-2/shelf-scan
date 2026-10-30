@@ -1,0 +1,19 @@
+# O que NÃO vai para o contexto do build.
+# Padrões sem **/ só valem na raiz de services/ocr-service/;
+# com **/ valem em qualquer subpasta (ocr/, test/...).
+
+# Ambientes virtuais locais
+.venv*/
+venv/
+
+# Caches do Python e do pytest
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+
+# Modelos baixados (~96 MB); como entram na imagem se decide no t3
+models/
+
+# Saídas do debug_detector.py e fotos locais: só para inspeção, fora da imagem
+debug/
+fotos/

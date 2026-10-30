@@ -1,0 +1,60 @@
+name: CI - Frontend
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feat-front
+      - feat-front/*
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+      - feat-front
+      - feat-front/*
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+# Um push novo cancela a execução anterior da mesma branch ou PR.
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-build:
+    name: Lint & Build (frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      # npm ci falha se o package-lock.json estiver fora de sincronia com o package.json
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Build (TypeScript + Vite)
+        run: npm run build

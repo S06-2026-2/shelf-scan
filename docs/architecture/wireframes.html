@@ -1,0 +1,786 @@
+<title>Shelf Scan Wireframes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#EEF1EC;
+    --surface:#FFFFFF;
+    --surface-alt:#F5F7F3;
+    --line:#D8DED4;
+    --line-soft:#E6EAE3;
+    --ink:#1B2420;
+    --ink-muted:#657069;
+    --ink-faint:#8B958E;
+
+    --accent:#1F6F54;
+    --accent-strong:#15543F;
+    --accent-soft:#E3F1EA;
+
+    --gold:#AD7A2E;
+    --gold-soft:#F5EAD6;
+
+    --tg:#229ED9;
+    --tg-soft:#E6F5FC;
+
+    --status-reading:#2F6FED; --status-reading-bg:#E8EFFE;
+    --status-wishlist:#7C4FC7; --status-wishlist-bg:#F0E9FB;
+    --status-done:#1F6F54; --status-done-bg:#E3F1EA;
+    --status-loan:#AE5A34; --status-loan-bg:#F8E9E1;
+
+    --shadow-sm: 0 1px 2px rgba(20,30,24,.06);
+    --shadow-md: 0 4px 10px rgba(20,30,24,.06), 0 1px 2px rgba(20,30,24,.05);
+    --shadow-lg: 0 12px 32px rgba(20,30,24,.14), 0 2px 6px rgba(20,30,24,.08);
+
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+
+    --font-display:"Fraunces", Georgia, serif;
+    --font-ui:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10140F; --surface:#171C15; --surface-alt:#1D231A;
+      --line:#2B322A; --line-soft:#222922;
+      --ink:#E9EDE4; --ink-muted:#9AA69B; --ink-faint:#6F7A6F;
+      --accent:#48B98D; --accent-strong:#5FCB9F; --accent-soft:#1B3428;
+      --gold:#D8AC5C; --gold-soft:#332813;
+      --tg:#4FC0F0; --tg-soft:#132732;
+      --status-reading:#6C9BFF; --status-reading-bg:#182238;
+      --status-wishlist:#B692EE; --status-wishlist-bg:#251D38;
+      --status-done:#48B98D; --status-done-bg:#1B3428;
+      --status-loan:#E08A5E; --status-loan-bg:#33221A;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.4);
+      --shadow-lg: 0 16px 36px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10140F; --surface:#171C15; --surface-alt:#1D231A;
+    --line:#2B322A; --line-soft:#222922;
+    --ink:#E9EDE4; --ink-muted:#9AA69B; --ink-faint:#6F7A6F;
+    --accent:#48B98D; --accent-strong:#5FCB9F; --accent-soft:#1B3428;
+    --gold:#D8AC5C; --gold-soft:#332813;
+    --tg:#4FC0F0; --tg-soft:#132732;
+    --status-reading:#6C9BFF; --status-reading-bg:#182238;
+    --status-wishlist:#B692EE; --status-wishlist-bg:#251D38;
+    --status-done:#48B98D; --status-done-bg:#1B3428;
+    --status-loan:#E08A5E; --status-loan-bg:#33221A;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.4);
+    --shadow-lg: 0 16px 36px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font-ui); font-size:15px;}
+  h1,h2,h3,h4{text-wrap:balance; margin:0; font-family:var(--font-display);}
+  button{font-family:inherit;}
+
+  .page{max-width:1220px; margin:0 auto; padding-inline:20px; padding-block:22px 56px; display:flex; flex-direction:column; gap:16px;}
+
+  .masthead{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;}
+  .masthead .brand{display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:600; font-size:1.15rem; color:var(--ink);}
+  .masthead .brand svg{width:22px; height:22px; color:var(--accent);}
+  .masthead .sub{color:var(--ink-muted); font-size:.83rem;}
+
+  /* ---- presentation toolbar ---- */
+  .toolbar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px;
+    background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--radius-md);
+    padding:10px 14px; box-shadow:var(--shadow-sm);
+  }
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; flex:1 1 auto;}
+  .tab{
+    border:1px solid var(--line-soft); background:var(--surface-alt); color:var(--ink-muted);
+    padding:7px 13px; border-radius:999px; font-size:.78rem; font-weight:600; cursor:pointer;
+    letter-spacing:.01em;
+  }
+  .tab.active{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:var(--shadow-sm);}
+  .ann-toggle{display:flex; align-items:center; gap:7px; font-size:.78rem; color:var(--ink-muted); white-space:nowrap; cursor:pointer; font-weight:500;}
+  .ann-toggle input{accent-color:var(--gold); width:14px; height:14px;}
+
+  /* ---- browser chrome ---- */
+  .chrome{
+    background:var(--surface-alt); border:1px solid var(--line-soft); border-radius:12px 12px 0 0;
+    padding:10px 14px; display:flex; align-items:center; gap:12px; margin-top:6px;
+  }
+  .chrome .dots{display:flex; gap:6px;}
+  .chrome .dots span{width:10px; height:10px; border-radius:50%; display:block; opacity:.55;}
+  .chrome .dots span:nth-child(1){background:#e0645c;}
+  .chrome .dots span:nth-child(2){background:#e3b341;}
+  .chrome .dots span:nth-child(3){background:#5fb85b;}
+  .chrome .url{
+    flex:1; background:var(--surface); border:1px solid var(--line-soft); border-radius:7px;
+    padding:5px 12px; font-size:.78rem; color:var(--ink-muted); text-align:center;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .chrome .url b{color:var(--ink-faint); font-weight:500;}
+
+  .stage{border:1px solid var(--line-soft); border-top:none; border-radius:0 0 var(--radius-lg) var(--radius-lg); background:var(--surface); box-shadow:var(--shadow-lg); overflow:hidden;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  /* ---- app shell ---- */
+  .app-shell{display:flex; min-height:600px;}
+  .sidebar{
+    width:212px; flex:0 0 212px; border-right:1px solid var(--line-soft); background:var(--surface-alt);
+    padding:20px 14px; display:flex; flex-direction:column; gap:3px;
+  }
+  .side-logo{display:flex; align-items:center; gap:9px; padding:2px 8px 18px; font-family:var(--font-display); font-weight:600; font-size:1.05rem;}
+  .side-logo svg{width:21px; height:21px; color:var(--accent);}
+  .navlink{
+    display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:0 8px 8px 0;
+    color:var(--ink-muted); font-size:.87rem; font-weight:500; cursor:default;
+  }
+  .navlink svg{width:17px; height:17px; flex:0 0 auto;}
+  .navlink.active{background:var(--accent-soft); color:var(--accent-strong); font-weight:600; box-shadow:inset 3px 0 0 var(--accent);}
+  .side-foot{margin-top:auto; padding:12px 10px 2px; font-size:.68rem; color:var(--ink-faint); border-top:1px solid var(--line-soft);}
+
+  .app-body{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{
+    display:flex; align-items:center; gap:14px; padding:15px 26px; border-bottom:1px solid var(--line-soft);
+  }
+  .searchbox{
+    flex:1; max-width:380px; display:flex; align-items:center; gap:9px; background:var(--surface-alt);
+    border:1px solid var(--line-soft); border-radius:9px; padding:8px 13px; color:var(--ink-faint); font-size:.85rem;
+  }
+  .searchbox svg{width:15px; height:15px; flex:0 0 auto;}
+  .iconbtn{
+    width:36px; height:36px; border-radius:9px; border:1px solid var(--line-soft); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-muted); position:relative; flex:0 0 auto;
+    box-shadow:var(--shadow-sm);
+  }
+  .iconbtn svg{width:16px; height:16px;}
+  .dot-badge{position:absolute; top:6px; right:7px; width:7px; height:7px; border-radius:50%; background:var(--status-loan); border:1.5px solid var(--surface);}
+  .avatar{
+    width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:.76rem; flex:0 0 auto; color:#fff; letter-spacing:.02em;
+  }
+  .avatar.sm{width:28px;height:28px;font-size:.66rem;}
+  .avatar.lg{width:72px;height:72px;font-size:1.35rem; box-shadow:var(--shadow-md);}
+  .av-1{background:linear-gradient(155deg,#2E8562,#1B5A44);}
+  .av-2{background:linear-gradient(155deg,#C48B3F,#93641F);}
+  .av-3{background:linear-gradient(155deg,#5C7FE0,#3B58AE);}
+  .av-4{background:linear-gradient(155deg,#B172D6,#7C4FC7);}
+  .av-5{background:linear-gradient(155deg,#D67D63,#AE5A34);}
+  .av-6{background:linear-gradient(155deg,#4FA8A0,#2C7972);}
+
+  .content{padding:26px 30px; display:flex; flex-direction:column; gap:26px;}
+  .section-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .section-head h2{font-size:1.05rem; font-weight:600; display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
+  .link-more{font-size:.8rem; color:var(--accent-strong); font-weight:600;}
+
+  .btn{
+    border-radius:9px; padding:9px 15px; font-size:.85rem; font-weight:600; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    box-shadow:var(--shadow-sm);
+  }
+  .btn svg{width:15px; height:15px;}
+  .btn-primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn-ghost{border-color:transparent; background:transparent; color:var(--ink-muted); box-shadow:none;}
+
+  /* annotation chip: maps a screen element back to the use-case diagram */
+  .ann{
+    display:inline-flex; align-items:center; gap:5px; font-size:.68rem; font-weight:600;
+    color:var(--gold); background:var(--gold-soft); border-radius:999px;
+    padding:3px 9px 3px 8px; line-height:1.5; white-space:nowrap;
+  }
+  body:not(.show-ann) .ann{display:none;}
+
+  /* profile */
+  .profile-head{display:flex; gap:20px; align-items:center; flex-wrap:wrap;}
+  .profile-stats{display:flex; gap:26px; margin-top:10px; flex-wrap:wrap;}
+  .stat b{font-family:var(--font-display); font-size:1.3rem; font-weight:600; display:block; line-height:1.1;}
+  .stat span{font-size:.72rem; color:var(--ink-muted);}
+
+  .req-row{display:flex; align-items:center; gap:11px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
+  .req-row:last-child{border-bottom:none;}
+  .req-row .who{flex:1; min-width:0;}
+  .req-row .who b{font-size:.86rem; display:block; font-weight:600;}
+  .req-row .who span{font-size:.72rem; color:var(--ink-muted);}
+  .req-actions{display:flex; gap:7px;}
+  .req-actions .btn{padding:6px 11px; font-size:.74rem;}
+
+  .friend-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:16px;}
+  .friend-item{display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center;}
+  .friend-item span{font-size:.72rem; color:var(--ink-muted); font-weight:500;}
+
+  .lib-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px;}
+  .lib-card{border:1px solid var(--line-soft); border-radius:var(--radius-md); padding:15px; display:flex; flex-direction:column; gap:9px; background:var(--surface);}
+  .lib-card .lib-top{display:flex; align-items:center; gap:11px;}
+  .lib-mark{width:40px; height:40px; border-radius:9px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; color:var(--accent-strong); flex:0 0 auto;}
+  .lib-mark svg{width:19px;height:19px;}
+  .lib-card h3{font-size:.88rem; font-weight:600; font-family:var(--font-ui);}
+  .lib-card p{margin:0; font-size:.74rem; color:var(--ink-muted);}
+  .pill{font-size:.66rem; font-weight:700; padding:3px 9px; border-radius:999px; width:fit-content; text-transform:uppercase; letter-spacing:.03em;}
+  .pill.member{background:var(--status-done-bg); color:var(--status-done);}
+
+  .rec-row{display:flex; gap:16px; overflow-x:auto; padding:2px 2px 8px;}
+  .rec-card{flex:0 0 156px; display:flex; flex-direction:column; gap:9px;}
+  .rec-card h4{font-size:.85rem; font-weight:600; font-family:var(--font-display);}
+  .rec-card p{margin:0; font-size:.7rem; color:var(--ink-muted);}
+  .ai-tag{display:inline-flex; align-items:center; gap:4px; font-size:.64rem; font-weight:700; color:var(--gold); background:var(--gold-soft); border-radius:999px; padding:3px 8px; width:fit-content; text-transform:uppercase; letter-spacing:.02em;}
+  .ai-tag svg{width:10px;height:10px;}
+
+  /* ---- illustrated book covers ---- */
+  .cover{
+    position:relative; width:100%; aspect-ratio:2/3; border-radius:7px; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:space-between; padding:12% 11%;
+    box-shadow:var(--shadow-md), inset 0 0 0 1px rgba(0,0,0,.06);
+    color:#fff;
+  }
+  .cover::before{content:""; position:absolute; inset:0 auto 0 0; width:14%; background:rgba(0,0,0,.16);}
+  .cover::after{content:""; position:absolute; inset:0; background:linear-gradient(115deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%);}
+  .cover .cv-rule{width:22%; height:2px; background:rgba(255,255,255,.55); margin-bottom:8%;}
+  .cover .cv-title{font-family:var(--font-display); font-weight:600; font-size:.92rem; line-height:1.15; position:relative; z-index:1;}
+  .cover .cv-author{font-size:.6rem; letter-spacing:.05em; text-transform:uppercase; opacity:.85; position:relative; z-index:1;}
+  .cover.sm{padding:14% 12%;}
+  .cover.sm .cv-title{font-size:.62rem;}
+  .cover.sm .cv-author{font-size:.46rem;}
+  .cover.sm .cv-rule{margin-bottom:10%;}
+  .cv-1{background:linear-gradient(160deg,#2C8465,#164534);}
+  .cv-2{background:linear-gradient(160deg,#9C3E4E,#651F2B);}
+  .cv-3{background:linear-gradient(160deg,#3C63A8,#22366B);}
+  .cv-4{background:linear-gradient(160deg,#B98A3B,#7C5A1E);}
+  .cv-5{background:linear-gradient(160deg,#7C4FC7,#4E2F8A);}
+  .cv-6{background:linear-gradient(160deg,#5A7A3A,#374B22);}
+  .cv-7{background:linear-gradient(160deg,#B15E3B,#7A3B21);}
+  .cv-8{background:linear-gradient(160deg,#3E4652,#232830);}
+
+  /* estante */
+  .filter-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .filter-chip{
+    border:1px solid var(--line-soft); background:var(--surface); color:var(--ink-muted);
+    font-size:.78rem; font-weight:600; padding:7px 14px; border-radius:999px;
+  }
+  .filter-chip.active{background:var(--ink); color:var(--surface); border-color:var(--ink);}
+  .split-actions{display:flex; align-items:center;}
+  .split-actions .btn-primary{border-radius:9px 0 0 9px; border-right:1px solid rgba(255,255,255,.25);}
+  .split-actions .caret{border-radius:0 9px 9px 0; padding:9px 9px;}
+
+  .book-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(174px,1fr)); gap:18px;}
+  .book-card{display:flex; flex-direction:column; gap:9px; position:relative;}
+  .book-card h4{font-size:.86rem; margin:0; font-weight:600; font-family:var(--font-display);}
+  .book-card p.author{margin:0; font-size:.73rem; color:var(--ink-muted);}
+  .status-badge{position:absolute; top:10px; right:10px; font-size:.6rem; font-weight:700; padding:4px 8px; border-radius:6px; letter-spacing:.03em; z-index:2; box-shadow:var(--shadow-sm);}
+  .status-badge.reading{background:var(--status-reading-bg); color:var(--status-reading);}
+  .status-badge.wishlist{background:var(--status-wishlist-bg); color:var(--status-wishlist);}
+  .status-badge.done{background:var(--status-done-bg); color:var(--status-done);}
+  .status-badge.loan{background:var(--status-loan-bg); color:var(--status-loan);}
+  .progress{height:5px; border-radius:999px; background:var(--line-soft); overflow:hidden;}
+  .progress i{display:block; height:100%; background:linear-gradient(90deg, var(--status-reading), #5C8CFF); border-radius:999px;}
+  .book-meta{display:flex; align-items:center; justify-content:space-between; font-size:.7rem; color:var(--ink-muted);}
+  .book-meta .comment{display:flex; align-items:center; gap:4px;}
+  .book-meta svg{width:13px;height:13px;}
+  .notify-strip{
+    display:flex; align-items:center; gap:8px; font-size:.71rem; font-weight:600; color:var(--status-loan); background:var(--status-loan-bg);
+    border-radius:7px; padding:6px 9px;
+  }
+  .notify-strip svg{width:13px;height:13px; flex:0 0 auto;}
+
+  /* OCR capture */
+  .stepper{display:flex; align-items:center; gap:9px; font-size:.8rem; color:var(--ink-faint); font-weight:500;}
+  .step{display:flex; align-items:center; gap:8px;}
+  .step-num{width:23px; height:23px; border-radius:50%; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; background:var(--surface);}
+  .step.done .step-num{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .step.now .step-num{background:var(--ink); border-color:var(--ink); color:var(--surface);}
+  .step.now{color:var(--ink); font-weight:700;}
+  .step-sep{width:30px; height:1.5px; background:var(--line);}
+
+  .upload-box{
+    border:1.5px dashed var(--line); border-radius:var(--radius-lg); background:var(--surface-alt);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:11px;
+    padding:56px 20px; text-align:center; color:var(--ink-muted);
+  }
+  .upload-box .icon-circle{width:56px; height:56px; border-radius:50%; background:var(--surface); border:1px solid var(--line-soft); display:flex; align-items:center; justify-content:center; color:var(--accent); box-shadow:var(--shadow-sm);}
+  .upload-box .icon-circle svg{width:25px;height:25px;}
+  .upload-box b{color:var(--ink); font-size:.95rem; font-weight:600;}
+  .upload-box p{margin:0; font-size:.79rem;}
+
+  .sample-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .sample-chip{display:flex; align-items:center; gap:8px; border:1px solid var(--line-soft); border-radius:9px; padding:7px 12px 7px 7px; font-size:.76rem; color:var(--ink-muted); background:var(--surface);}
+  .sample-chip .cover{width:24px; height:32px; border-radius:4px; padding:0;}
+  .sample-chip .cover .cv-rule, .sample-chip .cover .cv-title, .sample-chip .cover .cv-author{display:none;}
+
+  .divider-or{display:flex; align-items:center; gap:12px; color:var(--ink-faint); font-size:.74rem; font-weight:600;}
+  .divider-or::before, .divider-or::after{content:""; flex:1; height:1px; background:var(--line-soft);}
+
+  /* confirm */
+  .confirm-grid{display:grid; grid-template-columns:230px 1fr; gap:30px; align-items:start;}
+  .capture-preview{display:flex; flex-direction:column; gap:12px;}
+  .capture-preview .cover{aspect-ratio:3/4;}
+  .recognized-tag{display:inline-flex; align-items:center; gap:5px; font-size:.72rem; font-weight:700; color:var(--status-done); background:var(--status-done-bg); border-radius:999px; padding:4px 10px; width:fit-content;}
+  .recognized-tag svg{width:11px;height:11px;}
+  .retake{font-size:.78rem; color:var(--accent-strong); font-weight:600; text-align:left; background:none; border:none; padding:0; cursor:pointer; display:flex; align-items:center; gap:5px;}
+  .retake svg{width:13px;height:13px;}
+
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field.full{grid-column:1 / -1;}
+  .field label{font-size:.73rem; font-weight:700; color:var(--ink-muted); display:flex; align-items:center; gap:7px; text-transform:uppercase; letter-spacing:.02em;}
+  .field input, .field textarea, .field select{
+    border:1px solid var(--line); border-radius:9px; padding:10px 12px; font-size:.87rem; font-family:inherit;
+    background:var(--surface); color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:78px; line-height:1.5;}
+  .radio-row{display:flex; gap:16px; flex-wrap:wrap;}
+  .radio-opt{display:flex; align-items:center; gap:7px; font-size:.84rem; font-weight:500;}
+  .radio-opt input{accent-color:var(--accent); width:15px; height:15px;}
+
+  .telegram-note{
+    display:flex; gap:12px; align-items:flex-start; background:var(--tg-soft); border-radius:var(--radius-md); padding:13px 15px; font-size:.8rem; color:var(--ink);
+  }
+  .telegram-note .tg-icon{width:30px; height:30px; border-radius:50%; background:var(--tg); color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .telegram-note .tg-icon svg{width:15px;height:15px;}
+  .telegram-note b{font-weight:700;}
+  .form-actions{display:flex; justify-content:flex-end; gap:10px;}
+
+  @media (max-width: 760px){
+    .app-shell{flex-direction:column;}
+    .sidebar{width:100%; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line-soft); padding:12px;}
+    .side-logo{display:none;}
+    .side-foot{display:none;}
+    .navlink{flex-direction:column; gap:4px; font-size:.65rem; padding:8px 12px; white-space:nowrap; border-radius:9px; box-shadow:none !important;}
+    .navlink.active{box-shadow:none;}
+    .confirm-grid{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
+    .topbar{padding:12px 16px;}
+    .content{padding:18px;}
+    .capture-preview{max-width:180px;}
+  }
+</style>
+
+<svg style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="i-book" viewBox="0 0 18 18"><path d="M4 3.5A1.5 1.5 0 0 1 5.5 2H14v14H5.5A1.5 1.5 0 0 0 4 17.5v-14Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 14.5V3.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 18 18"><path d="M9 15.3S2.7 11.4 2.7 7A3.2 3.2 0 0 1 9 5.6 3.2 3.2 0 0 1 15.3 7c0 4.4-6.3 8.3-6.3 8.3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-users" viewBox="0 0 18 18"><circle cx="6.5" cy="6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 15c.5-2.8 2.3-4.3 4.5-4.3S10.5 12.2 11 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12.5" cy="6.6" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 10.9c1.8.1 3.2 1.5 3.6 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-building" viewBox="0 0 18 18"><rect x="3" y="2.5" width="12" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 5.5h1.4M10.6 5.5H12M6 8.5h1.4M10.6 8.5H12M6 11.5h1.4M10.6 11.5H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.3 15.5v-2.7h3.4v2.7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 18 18"><circle cx="9" cy="6" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.3 15.2c.7-3.3 2.8-5 5.7-5s5 1.7 5.7 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 18 18"><circle cx="7.8" cy="7.8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11.3 11.3 15.5 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 18 18"><path d="M9 2.6a3.6 3.6 0 0 0-3.6 3.6v2.3L4 11.6h10L12.6 8.5V6.2A3.6 3.6 0 0 0 9 2.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.4 14a1.7 1.7 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 18 18"><rect x="2.3" y="5.3" width="13.4" height="9.4" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.4 5.3 7.5 3.3h3l1.1 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="9" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 18 18"><rect x="2.3" y="3.3" width="13.4" height="11.4" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.4" cy="7.2" r="1.3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 13.4 7.4 9.6l2.3 2.3 2-2 2.7 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 18 18"><path d="M3.5 9.5 7 13l7.5-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 18 18"><path d="M4.5 6.8 9 11.3l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 18 18"><path d="M9 3.5v11M3.5 9h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-comment" viewBox="0 0 18 18"><path d="M2.7 3.8h12.6v8.4H8L4.8 15v-2.8H2.7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 18 18"><path d="M9 2.5c.4 2.4 1.1 3.6 3.5 4-2.4.4-3.1 1.6-3.5 4-.4-2.4-1.1-3.6-3.5-4 2.4-.4 3.1-1.6 3.5-4Z" fill="currentColor"/><path d="M14.3 11c.2 1.1.6 1.6 1.6 1.8-1 .2-1.4.7-1.6 1.8-.2-1.1-.6-1.6-1.6-1.8 1-.2 1.4-.7 1.6-1.8Z" fill="currentColor"/></symbol>
+    <symbol id="i-send" viewBox="0 0 18 18"><path d="M2.3 9.3 15.5 2.6 12.3 15.4 8.6 10.9 2.3 9.3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 10.9 15.5 2.6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 18 18"><path d="M4 4l10 10M14 4 4 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-retake" viewBox="0 0 18 18"><path d="M14.5 9A5.5 5.5 0 1 1 12.7 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14.5 3v3.5H11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <div class="masthead">
+    <div class="brand"><svg><use href="#i-book"/></svg> Shelf Scan</div>
+    <span class="sub">Wireframe de alta fidelidade — perfil, estante virtual e fluxo de adição via OCR</span>
+  </div>
+
+  <div class="toolbar">
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab active" data-target="scr-perfil" data-url="shelfscan.app/perfil">Perfil</button>
+      <button class="tab" data-target="scr-estante" data-url="shelfscan.app/estante">Estante</button>
+      <button class="tab" data-target="scr-ocr-captura" data-url="shelfscan.app/estante/adicionar/ocr">OCR — Captura</button>
+      <button class="tab" data-target="scr-ocr-confirma" data-url="shelfscan.app/estante/adicionar/ocr/confirmar">OCR — Confirmar dados</button>
+    </nav>
+    <label class="ann-toggle"><input type="checkbox" id="toggleAnn"> mapear casos de uso</label>
+  </div>
+
+  <div>
+    <div class="chrome">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="url" id="chromeUrl">🔒 <b>shelfscan.app</b>/perfil</div>
+    </div>
+
+    <div class="stage">
+      <!-- ================= SCREEN 1 — PERFIL ================= -->
+      <section id="scr-perfil" class="screen active">
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="side-logo"><svg><use href="#i-book"/></svg> Shelf Scan</div>
+            <a class="navlink"><svg><use href="#i-book"/></svg> Estante</a>
+            <a class="navlink"><svg><use href="#i-heart"/></svg> Lista de desejos</a>
+            <a class="navlink"><svg><use href="#i-users"/></svg> Amigos</a>
+            <a class="navlink"><svg><use href="#i-building"/></svg> Bibliotecas</a>
+            <a class="navlink active"><svg><use href="#i-user"/></svg> Perfil</a>
+            <div class="side-foot">Marina Duarte · conta padrão</div>
+          </aside>
+          <div class="app-body">
+            <header class="topbar">
+              <div class="searchbox"><svg><use href="#i-search"/></svg> Buscar livro, amigo ou biblioteca…</div>
+              <button class="iconbtn"><svg><use href="#i-bell"/></svg><span class="dot-badge"></span></button>
+              <div class="avatar av-1">MD</div>
+            </header>
+            <div class="content">
+
+              <div class="profile-head">
+                <div class="avatar lg av-1">MD</div>
+                <div style="flex:1; min-width:220px;">
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <h2 style="font-size:1.35rem; font-weight:600;">Marina Duarte</h2>
+                    <span class="ann">UC · Editar conta</span>
+                  </div>
+                  <div style="color:var(--ink-muted); font-size:.83rem; margin-top:2px;">@marinaduarte · leitora desde mar/2025</div>
+                  <div class="profile-stats">
+                    <div class="stat"><b>128</b><span>livros na estante</span></div>
+                    <div class="stat"><b>342</b><span>amigos</span></div>
+                    <div class="stat"><b>3</b><span>bibliotecas</span></div>
+                  </div>
+                </div>
+                <button class="btn"><svg><use href="#i-user"/></svg> Editar conta</button>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h2>Solicitações de amizade <span class="ann">UC · Enviar solicitação de amizade</span></h2>
+                </div>
+                <div class="req-row">
+                  <div class="avatar sm av-3">FL</div>
+                  <div class="who"><b>Felipe Loschi</b><span>3 amigos em comum</span></div>
+                  <div class="req-actions">
+                    <button class="btn btn-primary"><svg><use href="#i-check"/></svg> Aceitar</button>
+                    <button class="btn"><svg><use href="#i-x"/></svg> Recusar</button>
+                  </div>
+                </div>
+                <div class="req-row">
+                  <div class="avatar sm av-5">PD</div>
+                  <div class="who"><b>Pedro Dias</b><span>1 amigo em comum</span></div>
+                  <div class="req-actions">
+                    <button class="btn btn-primary"><svg><use href="#i-check"/></svg> Aceitar</button>
+                    <button class="btn"><svg><use href="#i-x"/></svg> Recusar</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h2>Amigos <span class="ann">UC · Visitar perfil de amigo</span></h2>
+                  <span class="link-more">Ver todos (342) →</span>
+                </div>
+                <div class="friend-grid">
+                  <div class="friend-item"><div class="avatar av-2">AC</div><span>Ana Clara</span></div>
+                  <div class="friend-item"><div class="avatar av-4">RM</div><span>Rafa Melo</span></div>
+                  <div class="friend-item"><div class="avatar av-6">JT</div><span>João T.</span></div>
+                  <div class="friend-item"><div class="avatar av-3">CB</div><span>Carla B.</span></div>
+                  <div class="friend-item"><div class="avatar av-5">LS</div><span>Lucas S.</span></div>
+                  <div class="friend-item"><div class="avatar" style="background:var(--surface-alt); color:var(--ink-muted); border:1px solid var(--line-soft);">+327</div><span>e mais</span></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h2>Bibliotecas <span class="ann">UC · Tornar-se membro / Visitar perfil de biblioteca</span></h2>
+                </div>
+                <div class="lib-grid">
+                  <div class="lib-card">
+                    <div class="lib-top">
+                      <div class="lib-mark"><svg><use href="#i-building"/></svg></div>
+                      <div><h3>Biblioteca Inatel</h3><span class="pill member">Membro</span></div>
+                    </div>
+                    <p>1.240 títulos · Santa Rita do Sapucaí, MG</p>
+                  </div>
+                  <div class="lib-card">
+                    <div class="lib-top">
+                      <div class="lib-mark"><svg><use href="#i-building"/></svg></div>
+                      <div><h3>Biblioteca Municipal Cora Coralina</h3><span class="pill member">Membro</span></div>
+                    </div>
+                    <p>3.980 títulos · acervo geral</p>
+                  </div>
+                  <div class="lib-card">
+                    <div class="lib-top">
+                      <div class="lib-mark"><svg><use href="#i-building"/></svg></div>
+                      <div><h3>Sebo Vira-Página</h3></div>
+                    </div>
+                    <p>620 títulos · usados e trocas</p>
+                    <button class="btn" style="align-self:flex-start;">+ Tornar-se membro</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h2>Recomendado pra você <span class="ann">UC · Consultar recomendações · Agente Recomendador da Estante Virtual</span></h2>
+                </div>
+                <div class="rec-row">
+                  <div class="rec-card">
+                    <div class="cover cv-6"><div class="cv-rule"></div><div class="cv-title">Torto Arado</div><div class="cv-author">Itamar Vieira Jr.</div></div>
+                    <span class="ai-tag"><svg><use href="#i-sparkle"/></svg> recomendado</span>
+                  </div>
+                  <div class="rec-card">
+                    <div class="cover cv-8"><div class="cv-rule"></div><div class="cv-title">Quarto de Despejo</div><div class="cv-author">Carolina M. de Jesus</div></div>
+                    <span class="ai-tag"><svg><use href="#i-sparkle"/></svg> recomendado</span>
+                  </div>
+                  <div class="rec-card">
+                    <div class="cover cv-2"><div class="cv-rule"></div><div class="cv-title">A Hora da Estrela</div><div class="cv-author">Clarice Lispector</div></div>
+                    <span class="ai-tag"><svg><use href="#i-sparkle"/></svg> recomendado</span>
+                  </div>
+                  <div class="rec-card">
+                    <div class="cover cv-4"><div class="cv-rule"></div><div class="cv-title">Iracema</div><div class="cv-author">José de Alencar</div></div>
+                    <span class="ai-tag"><svg><use href="#i-sparkle"/></svg> recomendado</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCREEN 2 — ESTANTE ================= -->
+      <section id="scr-estante" class="screen">
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="side-logo"><svg><use href="#i-book"/></svg> Shelf Scan</div>
+            <a class="navlink active"><svg><use href="#i-book"/></svg> Estante</a>
+            <a class="navlink"><svg><use href="#i-heart"/></svg> Lista de desejos</a>
+            <a class="navlink"><svg><use href="#i-users"/></svg> Amigos</a>
+            <a class="navlink"><svg><use href="#i-building"/></svg> Bibliotecas</a>
+            <a class="navlink"><svg><use href="#i-user"/></svg> Perfil</a>
+            <div class="side-foot">Marina Duarte · conta padrão</div>
+          </aside>
+          <div class="app-body">
+            <header class="topbar">
+              <div class="searchbox"><svg><use href="#i-search"/></svg> Buscar na minha estante…</div>
+              <button class="iconbtn"><svg><use href="#i-bell"/></svg><span class="dot-badge"></span></button>
+              <div class="avatar av-1">MD</div>
+            </header>
+            <div class="content">
+
+              <div class="section-head">
+                <h2 style="font-size:1.25rem;">Minha estante <span class="ann">UC · Criar e editar estante virtual</span></h2>
+                <div class="split-actions">
+                  <button class="btn btn-primary"><svg><use href="#i-plus"/></svg> Adicionar livro</button>
+                  <button class="btn btn-primary caret"><svg><use href="#i-chevron"/></svg></button>
+                </div>
+              </div>
+
+              <div class="filter-row">
+                <button class="filter-chip active">Todos · 128</button>
+                <button class="filter-chip">Lendo · 4</button>
+                <button class="filter-chip">Lido · 96</button>
+                <button class="filter-chip">Quero ler · 22</button>
+                <button class="filter-chip">Emprestados · 6</button>
+                <span class="ann">UC · Atualizar status de leitura</span>
+              </div>
+
+              <div class="book-grid">
+                <div class="book-card">
+                  <div class="status-badge reading">LENDO</div>
+                  <div class="cover cv-3"><div class="cv-rule"></div><div class="cv-title">Grande Sertão: Veredas</div><div class="cv-author">Guimarães Rosa</div></div>
+                  <h4>Grande Sertão: Veredas</h4>
+                  <p class="author">Guimarães Rosa</p>
+                  <div class="progress"><i style="width:64%"></i></div>
+                  <div class="book-meta"><span>64% concluído</span><span class="comment"><svg><use href="#i-comment"/></svg>3</span></div>
+                </div>
+                <div class="book-card">
+                  <div class="status-badge done">LIDO</div>
+                  <div class="cover cv-1"><div class="cv-rule"></div><div class="cv-title">Dom Casmurro</div><div class="cv-author">Machado de Assis</div></div>
+                  <h4>Dom Casmurro</h4>
+                  <p class="author">Machado de Assis</p>
+                  <div class="book-meta"><span>concluído em jun/2025</span><span class="comment"><svg><use href="#i-comment"/></svg>12</span></div>
+                </div>
+                <div class="book-card">
+                  <div class="status-badge loan">EMPRESTADO</div>
+                  <div class="cover cv-7"><div class="cv-rule"></div><div class="cv-title">Capitães da Areia</div><div class="cv-author">Jorge Amado</div></div>
+                  <h4>Capitães da Areia</h4>
+                  <p class="author">Jorge Amado <span class="ann">UC · Registrar empréstimo entre amigos</span></p>
+                  <div class="book-meta"><span>com Felipe Loschi</span><span class="comment"><svg><use href="#i-comment"/></svg>1</span></div>
+                </div>
+                <div class="book-card">
+                  <div class="status-badge wishlist">QUERO LER</div>
+                  <div class="cover cv-6"><div class="cv-rule"></div><div class="cv-title">Torto Arado</div><div class="cv-author">Itamar Vieira Jr.</div></div>
+                  <h4>Torto Arado</h4>
+                  <p class="author">Itamar Vieira Junior</p>
+                  <div class="notify-strip"><svg><use href="#i-bell"/></svg> Disponível na Biblioteca Inatel!</div>
+                  <span class="ann">UC · Notificar item da lista de desejos disponível</span>
+                </div>
+                <div class="book-card">
+                  <div class="status-badge done">LIDO</div>
+                  <div class="cover cv-8"><div class="cv-rule"></div><div class="cv-title">Vidas Secas</div><div class="cv-author">Graciliano Ramos</div></div>
+                  <h4>Vidas Secas</h4>
+                  <p class="author">Graciliano Ramos</p>
+                  <div class="book-meta"><span>concluído em jan/2025</span><span class="comment"><svg><use href="#i-comment"/></svg>0</span></div>
+                </div>
+                <div class="book-card">
+                  <div class="status-badge reading">LENDO</div>
+                  <div class="cover cv-5"><div class="cv-rule"></div><div class="cv-title">Quarto de Despejo</div><div class="cv-author">Carolina M. de Jesus</div></div>
+                  <h4>Quarto de Despejo</h4>
+                  <p class="author">Carolina Maria de Jesus</p>
+                  <div class="progress"><i style="width:18%"></i></div>
+                  <div class="book-meta"><span>18% concluído</span><span class="comment"><svg><use href="#i-comment"/></svg>2</span></div>
+                </div>
+              </div>
+              <span class="ann" style="width:fit-content;">ícone de comentário → UC · Criar comentário/post sobre um livro</span>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCREEN 3 — OCR CAPTURA ================= -->
+      <section id="scr-ocr-captura" class="screen">
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="side-logo"><svg><use href="#i-book"/></svg> Shelf Scan</div>
+            <a class="navlink active"><svg><use href="#i-book"/></svg> Estante</a>
+            <a class="navlink"><svg><use href="#i-heart"/></svg> Lista de desejos</a>
+            <a class="navlink"><svg><use href="#i-users"/></svg> Amigos</a>
+            <a class="navlink"><svg><use href="#i-building"/></svg> Bibliotecas</a>
+            <a class="navlink"><svg><use href="#i-user"/></svg> Perfil</a>
+            <div class="side-foot">Marina Duarte · conta padrão</div>
+          </aside>
+          <div class="app-body">
+            <header class="topbar">
+              <div style="flex:1; font-weight:600; font-size:.95rem;">Adicionar livro</div>
+              <button class="iconbtn"><svg><use href="#i-x"/></svg></button>
+            </header>
+            <div class="content" style="align-items:center;">
+              <div style="width:100%; max-width:560px; display:flex; flex-direction:column; gap:24px;">
+
+                <div class="stepper">
+                  <div class="step now"><div class="step-num">1</div> Capturar</div>
+                  <div class="step-sep"></div>
+                  <div class="step"><div class="step-num">2</div> Confirmar dados</div>
+                </div>
+
+                <div>
+                  <h2 style="font-size:1.2rem; font-weight:600;">Adicionar livro via OCR <span class="ann">UC · Adicionar livro via OCR</span></h2>
+                  <p style="color:var(--ink-muted); font-size:.86rem; margin:5px 0 0;">Envie uma foto nítida da capa ou da lombada do livro.</p>
+                </div>
+
+                <div class="upload-box">
+                  <div class="icon-circle"><svg><use href="#i-camera"/></svg></div>
+                  <b>Arraste a foto aqui ou clique para enviar</b>
+                  <p>JPG ou PNG · até 10MB</p>
+                  <span class="ann">Agente · OCR Inteligente extrai título e autor da imagem</span>
+                </div>
+
+                <div>
+                  <div style="font-size:.78rem; color:var(--ink-muted); margin-bottom:9px; font-weight:600;">Fotos recentes desta sessão</div>
+                  <div class="sample-row">
+                    <div class="sample-chip"><div class="cover cv-4"></div> lombada_estante_01.jpg</div>
+                    <div class="sample-chip"><div class="cover cv-6"></div> capa_torto_arado.jpg</div>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary" style="justify-content:center; padding:13px;"><svg><use href="#i-camera"/></svg> Reconhecer livro →</button>
+                <span class="ann" style="align-self:center;">estado de carregamento "Lendo a capa…" antes de ir pra próxima etapa</span>
+
+                <div class="divider-or">ou</div>
+                <button class="btn" style="justify-content:center;">Adicionar manualmente</button>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCREEN 4 — OCR CONFIRMAR ================= -->
+      <section id="scr-ocr-confirma" class="screen">
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="side-logo"><svg><use href="#i-book"/></svg> Shelf Scan</div>
+            <a class="navlink active"><svg><use href="#i-book"/></svg> Estante</a>
+            <a class="navlink"><svg><use href="#i-heart"/></svg> Lista de desejos</a>
+            <a class="navlink"><svg><use href="#i-users"/></svg> Amigos</a>
+            <a class="navlink"><svg><use href="#i-building"/></svg> Bibliotecas</a>
+            <a class="navlink"><svg><use href="#i-user"/></svg> Perfil</a>
+            <div class="side-foot">Marina Duarte · conta padrão</div>
+          </aside>
+          <div class="app-body">
+            <header class="topbar">
+              <div style="flex:1; font-weight:600; font-size:.95rem;">Adicionar livro</div>
+              <button class="iconbtn"><svg><use href="#i-x"/></svg></button>
+            </header>
+            <div class="content">
+
+              <div class="stepper">
+                <div class="step done"><div class="step-num"><svg style="width:12px;height:12px"><use href="#i-check"/></svg></div> Capturar</div>
+                <div class="step-sep"></div>
+                <div class="step now"><div class="step-num">2</div> Confirmar dados</div>
+              </div>
+
+              <div class="confirm-grid">
+                <div class="capture-preview">
+                  <div class="cover cv-1"><div class="cv-rule"></div><div class="cv-title">Dom Casmurro</div><div class="cv-author">Machado de Assis</div></div>
+                  <span class="recognized-tag"><svg><use href="#i-check"/></svg> reconhecido via OCR</span>
+                  <button class="retake"><svg><use href="#i-retake"/></svg> Tirar outra foto</button>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                  <span class="ann" style="width:fit-content;">campos pré-preenchidos pelo OCR e enriquecidos pelo Agente Enriquecedor de Metadados</span>
+                  <div class="form-grid">
+                    <div class="field">
+                      <label>Título</label>
+                      <input type="text" value="Dom Casmurro">
+                    </div>
+                    <div class="field">
+                      <label>Autor</label>
+                      <input type="text" value="Machado de Assis">
+                    </div>
+                    <div class="field">
+                      <label>Editora</label>
+                      <input type="text" value="Editora Garnier">
+                    </div>
+                    <div class="field">
+                      <label>Ano</label>
+                      <input type="text" value="1899">
+                    </div>
+                    <div class="field full">
+                      <label>Gênero <span class="ann"><svg style="width:9px;height:9px"><use href="#i-sparkle"/></svg> Enriquecedor de Metadados</span></label>
+                      <input type="text" value="Romance realista">
+                    </div>
+                    <div class="field full">
+                      <label>Sinopse <span class="ann"><svg style="width:9px;height:9px"><use href="#i-sparkle"/></svg> Enriquecedor de Metadados</span></label>
+                      <textarea>Narrado por Bentinho, o romance acompanha seu ciúme obsessivo por Capitu e a dúvida que atravessa toda a obra: ela o teria traído com Escobar, seu melhor amigo?</textarea>
+                    </div>
+                    <div class="field full">
+                      <label>Status de leitura <span class="ann">UC · Atualizar status de leitura</span></label>
+                      <div class="radio-row">
+                        <label class="radio-opt"><input type="radio" name="status" checked> Quero ler</label>
+                        <label class="radio-opt"><input type="radio" name="status"> Lendo</label>
+                        <label class="radio-opt"><input type="radio" name="status"> Lido</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="telegram-note">
+                    <div class="tg-icon"><svg><use href="#i-send"/></svg></div>
+                    <div>Ao salvar, o <b>database-service</b> registra o livro na sua estante e o <b>notification-service</b> te avisa no Telegram. <span class="ann">Ator Telegram · UC Enviar notificação</span></div>
+                  </div>
+
+                  <div class="form-actions">
+                    <button class="btn">Cancelar</button>
+                    <button class="btn btn-primary"><svg><use href="#i-check"/></svg> Salvar na estante</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    var tabs = document.querySelectorAll('.tab');
+    var screens = document.querySelectorAll('.screen');
+    var urlBar = document.getElementById('chromeUrl');
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        tabs.forEach(function(t){ t.classList.remove('active'); });
+        screens.forEach(function(s){ s.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).classList.add('active');
+        urlBar.innerHTML = '🔒 <b>shelfscan.app</b>/' + tab.dataset.url.split('shelfscan.app/')[1];
+      });
+    });
+    var annToggle = document.getElementById('toggleAnn');
+    annToggle.addEventListener('change', function(){
+      document.body.classList.toggle('show-ann', annToggle.checked);
+    });
+  })();
+</script>

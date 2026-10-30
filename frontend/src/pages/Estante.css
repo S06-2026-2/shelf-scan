@@ -1,0 +1,64 @@
+.estante {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.estante-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.estante-cabecalho h1 {
+  font-size: 1.35rem;
+}
+
+.estante-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filtro {
+  padding: 7px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filtro:hover {
+  border-color: var(--accent);
+}
+
+.filtro:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.filtro.ativo {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.estante-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 22px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.estante-vazia {
+  margin: 0;
+  color: var(--ink-muted);
+}

@@ -1,0 +1,47 @@
+name: CI - Database Service
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feat-db/*
+    paths:
+      - 'services/database-service/**'
+      - '.github/workflows/database-service-ci.yml'
+  # Sem filtro de branch: roda em qualquer PR que mexa no database-service,
+  # inclusive nos PRs de testes do agente (que apontam para a branch do PR original)
+  pull_request:
+    paths:
+      - 'services/database-service/**'
+      - '.github/workflows/database-service-ci.yml'
+
+jobs:
+  build-and-test:
+    name: Build & Test (database-service)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/database-service
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'oracle'
+          cache: 'maven'
+          cache-dependency-path: 'services/database-service/pom.xml'
+
+      - name: Dar permissão de execução ao Wrapper do Maven
+        run: chmod +x mvnw
+
+      - name: Compilar e Rodar Testes
+        run: ./mvnw clean test
+
+      - name: Validar Build da Imagem Docker
+        run: docker build -t shelfscan/database-service:latest .
