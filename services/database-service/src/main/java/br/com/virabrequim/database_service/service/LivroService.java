@@ -95,7 +95,7 @@ public class LivroService {
     // ficaram sem nenhum livro são apagados.
     @Transactional
     public LivroNode atualizar(Long usuarioId, Long livroId, AtualizacaoLivro dados) {
-        LivroNode livro = buscarLivroDoUsuario(usuarioId, livroId);
+        LivroNode livro = buscarDoDono(usuarioId, livroId);
         List<AutorNode> autoresAntes = List.copyOf(livro.getAutores());
         Set<TagNode> tagsAntes = Set.copyOf(livro.getTags());
 
@@ -128,7 +128,7 @@ public class LivroService {
     }
 
     public LivroNode mover(Long usuarioId, Long livroId, Long estanteDestinoId) {
-        LivroNode livro = buscarLivroDoUsuario(usuarioId, livroId);
+        LivroNode livro = buscarDoDono(usuarioId, livroId);
         EstanteNode destino = buscarEstanteDoUsuario(buscarUsuario(usuarioId), estanteDestinoId);
 
         livro.setEstante(destino);
@@ -139,7 +139,7 @@ public class LivroService {
     //  leituras de quem pegou emprestado, que ficam guardadas nesses empréstimos.
     @Transactional
     public void remover(Long usuarioId, Long livroId) {
-        LivroNode livro = buscarLivroDoUsuario(usuarioId, livroId);
+        LivroNode livro = buscarDoDono(usuarioId, livroId);
         if (livro.isEmprestado()) {
             throw new IllegalStateException("O livro está emprestado e não pode ser removido.");
         }
@@ -188,7 +188,8 @@ public class LivroService {
                 .orElse(false);
     }
 
-    private LivroNode buscarLivroDoUsuario(Long usuarioId, Long livroId) {
+    // Livro do usuário: 404 se o livro não existe ou se é de outra pessoa (não revela dados de outros)
+    public LivroNode buscarDoDono(Long usuarioId, Long livroId) {
         buscarUsuario(usuarioId);
         LivroNode livro = buscar(livroId);
         if (!ehDono(usuarioId, livroId)) {
