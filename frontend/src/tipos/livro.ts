@@ -12,10 +12,20 @@ export interface Livro {
   emprestadoPara?: string
   aviso?: string
   volume?: string
-  editora?: string
-  ano?: string
   genero?: string
   sinopse?: string
+}
+
+// O que a tela de confirmação coleta para salvar um livro. O banco e o modo demonstração partem daqui.
+export interface NovoLivro {
+  titulo: string
+  autores: string[]
+  volume?: string
+  genero?: string
+  sinopse?: string
+  paginas?: number
+  status: Exclude<StatusLeitura, 'emprestado'>
+  paginaAtual?: number
 }
 
 // O que o OCR identifica na foto (contrato do ocr-service). Ano, gênero e sinopse não vêm daqui:

@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import type { EstadoDaLeitura, LeituraDaFoto } from '../api/ocrContrato'
 import { Passos } from '../components/Passos'
 import { useLivros } from '../estado/LivrosContext'
-import type { Livro, StatusLeitura } from '../tipos/livro'
+import type { NovoLivro } from '../tipos/livro'
 import './ConfirmarLivro.css'
 
 interface EstadoConfirmacao {
@@ -11,15 +11,11 @@ interface EstadoConfirmacao {
   imagem: Blob
 }
 
-type StatusEscolhivel = Exclude<StatusLeitura, 'emprestado'>
-
-const STATUS: { valor: StatusEscolhivel; rotulo: string }[] = [
+const STATUS: { valor: NovoLivro['status']; rotulo: string }[] = [
   { valor: 'quero-ler', rotulo: 'Quero ler' },
   { valor: 'lendo', rotulo: 'Lendo' },
   { valor: 'lido', rotulo: 'Lido' },
 ]
-
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 const SELOS: Record<EstadoDaLeitura, string> = {
   estruturado: 'Reconhecido via OCR',
@@ -40,19 +36,22 @@ function lerEstado(estado: unknown): EstadoConfirmacao | null {
   return leitura && imagem instanceof Blob ? { leitura, imagem } : null
 }
 
-function corDoTitulo(titulo: string): number {
-  const soma = [...titulo].reduce((total, letra) => total + letra.charCodeAt(0), 0)
-  return (soma % 8) + 1
-}
-
-function mesEAnoAtual(): string {
-  const hoje = new Date()
-  return `${MESES[hoje.getMonth()]}/${hoje.getFullYear()}`
-}
-
 function opcional(texto: string): string | undefined {
   const limpo = texto.trim()
   return limpo === '' ? undefined : limpo
+}
+
+// Campos <input type="number"> devolvem "" quando vazios ou inválidos.
+function numeroOpcional(texto: string): number | undefined {
+  return texto.trim() === '' ? undefined : Number(texto)
+}
+
+// "Machado de Assis, Fulano" vira ["Machado de Assis", "Fulano"].
+function separarAutores(texto: string): string[] {
+  return texto
+    .split(/[,;]/)
+    .map((nome) => nome.trim())
+    .filter((nome) => nome !== '')
 }
 
 export function ConfirmarLivro() {
@@ -71,14 +70,15 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
   const [previa, setPrevia] = useState<string | null>(null)
   const [titulo, setTitulo] = useState(reconhecido.titulo)
   const [autor, setAutor] = useState(reconhecido.autor)
-  const [editora, setEditora] = useState(reconhecido.editora ?? '')
   const [volume, setVolume] = useState(reconhecido.volume ?? '')
-  // Ano, gênero e sinopse não vêm do OCR (o enriquecimento é do database-service): ficam à mão.
-  const [ano, setAno] = useState('')
+  // Gênero, sinopse e páginas não vêm do OCR (o enriquecimento é do database-service): ficam à mão.
   const [genero, setGenero] = useState('')
   const [sinopse, setSinopse] = useState('')
-  const [status, setStatus] = useState<StatusEscolhivel>('quero-ler')
+  const [paginas, setPaginas] = useState('')
+  const [paginaAtual, setPaginaAtual] = useState('')
+  const [status, setStatus] = useState<NovoLivro['status']>('quero-ler')
   const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   // Lê a imagem de forma assíncrona; a foto já foi reduzida na captura, então é pequena.
   useEffect(() => {
@@ -88,29 +88,32 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
     return () => leitor.abort()
   }, [imagem])
 
-  function salvar(evento: FormEvent) {
+  async function salvar(evento: FormEvent) {
     evento.preventDefault()
     if (titulo.trim() === '') {
       setErro('Informe o título do livro.')
       return
     }
 
-    const livro: Livro = {
-      id: crypto.randomUUID(),
-      titulo: titulo.trim(),
-      autor: autor.trim() || 'Autor não informado',
-      status,
-      cor: corDoTitulo(titulo),
-      progresso: status === 'lendo' ? 0 : undefined,
-      concluidoEm: status === 'lido' ? mesEAnoAtual() : undefined,
-      volume: opcional(volume),
-      editora: opcional(editora),
-      ano: opcional(ano),
-      genero: opcional(genero),
-      sinopse: opcional(sinopse),
+    setErro(null)
+    setSalvando(true)
+    try {
+      await adicionarLivro({
+        titulo: titulo.trim(),
+        autores: separarAutores(autor),
+        volume: opcional(volume),
+        genero: opcional(genero),
+        sinopse: opcional(sinopse),
+        paginas: numeroOpcional(paginas),
+        status,
+        paginaAtual: status === 'lendo' ? numeroOpcional(paginaAtual) : undefined,
+      })
+      navegar('/estante')
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível salvar o livro.')
+    } finally {
+      setSalvando(false)
     }
-    adicionarLivro(livro)
-    navegar('/estante')
   }
 
   const aviso = AVISOS[estado]
@@ -154,21 +157,37 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
             <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           </div>
           <div className="campo">
-            <label htmlFor="autor">Autor(es)</label>
+            <label htmlFor="autor">Autor(es), separados por vírgula</label>
             <input id="autor" value={autor} onChange={(e) => setAutor(e.target.value)} />
-          </div>
-          <div className="campo">
-            <label htmlFor="editora">Editora</label>
-            <input id="editora" value={editora} onChange={(e) => setEditora(e.target.value)} />
           </div>
           <div className="campo">
             <label htmlFor="volume">Volume</label>
             <input id="volume" value={volume} onChange={(e) => setVolume(e.target.value)} />
           </div>
           <div className="campo">
-            <label htmlFor="ano">Ano</label>
-            <input id="ano" inputMode="numeric" value={ano} onChange={(e) => setAno(e.target.value)} />
+            <label htmlFor="paginas">Páginas (total)</label>
+            <input
+              id="paginas"
+              type="number"
+              min={0}
+              step={1}
+              value={paginas}
+              onChange={(e) => setPaginas(e.target.value)}
+            />
           </div>
+          {status === 'lendo' && (
+            <div className="campo">
+              <label htmlFor="pagina-atual">Página atual</label>
+              <input
+                id="pagina-atual"
+                type="number"
+                min={0}
+                step={1}
+                value={paginaAtual}
+                onChange={(e) => setPaginaAtual(e.target.value)}
+              />
+            </div>
+          )}
           <div className="campo campo-largo">
             <label htmlFor="genero">Gênero</label>
             <input id="genero" value={genero} onChange={(e) => setGenero(e.target.value)} />
@@ -204,8 +223,8 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
             <Link to="/estante" className="botao">
               Cancelar
             </Link>
-            <button type="submit" className="botao botao-primario">
-              Salvar na estante
+            <button type="submit" className="botao botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando…' : 'Salvar na estante'}
             </button>
           </div>
         </div>
