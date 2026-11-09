@@ -4,25 +4,22 @@ on:
   pull_request:
     branches:
       - dev
+    # Sob demanda: o agente só roda quando alguém põe a label `gerar-testes` no PR (testes escritos depois do
+    # código). Push, merge do PR de testes e ready_for_review não disparam mais nada
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-    # Só código de produção dispara o agente: PR que mexe apenas em testes não roda (evita laço)
-    paths:
-      - 'services/database-service/src/main/**'
+      - labeled
 
 jobs:
   gerar-testes:
     name: Gerar testes a partir das specs
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    # Qualquer outra label dispara o evento `labeled` também: só a `gerar-testes` roda o agente
+    if: github.event.label.name == 'gerar-testes'
     # O timeout do job não pode depender de outputs de steps: fica fixo acima do maior timeout do agente
     # (12 + 3 * MAX_CLASSES_COM_SPEC = 30 min) mais a folga para checkout, JDK e publicação
     timeout-minutes: 40
 
-    # Um push novo no mesmo PR cancela a execução anterior
+    # Pôr a label de novo no mesmo PR cancela a execução anterior
     concurrency:
       group: agente-testes-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -122,7 +119,7 @@ jobs:
       # Em PRs a action restaura .claude/ da branch base: o agente e as permissões usados são os da base,
       # nunca os do PR. O github_token evita depender do GitHub App do Claude (o agente não usa a API do GitHub).
       # Timeout no step (não só no job): estouro aqui vira falha, e não cancelamento,
-      # que é o mesmo estado de um run cancelado por push novo (concurrency)
+      # que é o mesmo estado de um run cancelado por label posta de novo (concurrency)
       - name: Rodar agente gerador de testes
         id: agente
         if: steps.classes.outputs.fqns != ''
@@ -212,13 +209,13 @@ jobs:
             URL=$(gh pr create --repo "$REPO" --base "$BRANCH_ORIGEM" --head "$BRANCH" \
               --title "test: Testes do agente para o PR #${PR_NUM}" --body-file "$RELATORIO")
             echo "PR de testes criado: $URL"
-            # Comentário no PR original só na criação, para não repetir a cada push
+            # Comentário no PR original só na criação, para não repetir a cada execução
             gh pr comment "$PR_NUM" --repo "$REPO" \
               --body "🤖 O agente gerador de testes abriu o PR ${URL} com os testes deste PR. O resultado (testes passando/falhando e PIT) está na descrição de lá."
           fi
 
       # Comenta no PR original a cada falha, com o motivo. Usa o GITHUB_TOKEN (aparece como github-actions[bot]).
-      # Não roda em cancelamento (ex.: run cancelado por push novo no PR).
+      # Não roda em cancelamento (ex.: run cancelado por label posta de novo no PR).
       - name: Avisar falha no PR
         if: >-
           failure() && (steps.autor.outcome == 'failure'
@@ -275,3 +272,14 @@ jobs:
 
           printf '⚠️ **O agente gerador de testes falhou neste PR.**\n\n**Motivo:** %s\n\nDetalhes, relatório e log: %s\n' \
             "$MOTIVO" "$RUN_URL" | gh pr comment "$PR_NUM" --repo "$REPO" --body-file -
+
+      # Tira a label no fim (sucesso, falha ou cancelamento): um clique = uma execução, e para rodar de novo basta
+      # pôr a label outra vez. API REST direta porque o `gh pr edit` pede permissões que o GITHUB_TOKEN não tem.
+      # 404 (label já removida, ex.: por um run cancelado) não é erro
+      - name: Remover label gerar-testes
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/${REPO}/issues/${PR_NUM}/labels/gerar-testes" --silent || true
