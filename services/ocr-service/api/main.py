@@ -1,6 +1,6 @@
 """API HTTP do ocr-service (FastAPI).
 
-Camada fina sobre o núcleo (ocr/): carrega o detector, expõe as rotas do contrato
+Camada fina sobre o núcleo (ocr/): carrega o detector e o agente, expõe as rotas do contrato
 (docs/contrato-api.md, seção 3) e traduz o domínio para HTTP.
 """
 
@@ -16,10 +16,12 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from google import genai
 
 from api.schemas import ErrorResponse, ExtractionResponse
 from ocr.exceptions import FileTooLargeError, OcrError
 from ocr.pipeline import run_pipeline
+from ocr.structurer import GeminiLlm, structure
 from ocr.text_detector import EastTextDetector
 
 logger = logging.getLogger(__name__)
@@ -153,19 +155,38 @@ def load_detector(state, model_path):
         state.model_status = "error"
 
 
+def load_llm():
+    """Cria o agente estruturador se houver GEMINI_API_KEY; sem ela, a API segue sem o agente
+
+    RETURNS:
+        GeminiLlm pronta para uso, ou None (sem chave, ou se o cliente não puder ser criado)
+    """
+    if not os.environ.get("GEMINI_API_KEY", "").strip():
+        logger.warning("GEMINI_API_KEY não definida: o agente estruturador está desligado")
+        return None
+    try:
+        # O genai.Client() lê a GEMINI_API_KEY do ambiente
+        return GeminiLlm(genai.Client())
+    except Exception:
+        logger.exception("Falha ao criar o cliente do Gemini: o agente estruturador está desligado")
+        return None
+
+
 @asynccontextmanager
 async def lifespan(app):
     # O servidor começa a responder na hora; o modelo (~630 MB, ~1 s) carrega em paralelo
     app.state.detector = None
     app.state.model_status = "loading"
     threading.Thread(target=load_detector, args=(app.state, EAST_MODEL_PATH), daemon=True).start()
+    # O agente é opcional: sem chave fica None, e as fotos saem "unstructured"
+    app.state.llm = load_llm()
     yield
 
 
 app = FastAPI(
     title="Shelf Scan OCR Service",
     version="0.1.0",
-    description="Detecção (EAST) e leitura (Tesseract) de texto em capas e lombadas",
+    description="Detecção (EAST), leitura (Tesseract) e estruturação (Gemini) do texto de capas e lombadas",
     lifespan=lifespan,
 )
 
@@ -248,4 +269,8 @@ async def extraction(image: Annotated[UploadFile, File(description="Foto da capa
 
     # O pipeline bloqueia por alguns segundos (CPU e Tesseract): roda numa thread
     # para o servidor continuar respondendo /live e /health enquanto isso
-    return await run_in_threadpool(run_pipeline_exclusive, img_bytes, app.state.detector)
+    result = await run_in_threadpool(run_pipeline_exclusive, img_bytes, app.state.detector)
+
+    # O agente roda depois e fora do lock: enquanto ele espera o Gemini (até 5 s), a
+    # próxima foto já pode usar o EAST. Também numa thread, para não travar o servidor
+    return await run_in_threadpool(structure, result, getattr(app.state, "llm", None))
