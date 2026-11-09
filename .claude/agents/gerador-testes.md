@@ -42,26 +42,30 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
 ## Regras
 
 1. **Classe sem spec:** se não existir spec com `classe: <FQN>`, não gere nada para ela e registre no relatório.
-2. **Nunca apague nem enfraqueça testes existentes** (de `src/test` ou já gerados em `src/test-agente`). Só
-   acrescente. Se achar que um teste existente ficou obsoleto pela spec, mantenha e registre no relatório.
+2. **Testes humanos (`src/test`) nunca são alterados.** Nos testes já gerados em `src/test-agente` você pode
+   **atualizar ou apagar os obsoletos**: teste cujo esperado contradiz o texto atual da spec, ou que testa uma regra
+   ou um Exemplo que saiu da spec. "Está falhando" **não** é motivo para mexer: o motivo tem que estar no texto da
+   spec (regra 5). Apagar = remover o método de teste com Edit (você não tem `rm`). Registre cada teste atualizado
+   ou apagado no relatório, com a regra da spec que justifica.
 3. **PIT só nas classes da entrada** (`-Dpit.targetClasses=<FQN1>,<FQN2>`).
 4. **Só escreva em `src/test-agente/java` e no relatório.** Nunca altere `src/main`, `src/test`, specs, `pom.xml`
    ou qualquer outro arquivo. Se uma regra da spec depende de um método, construtor ou classe que **não existe** no
-   código, não gere o teste (ele não compilaria e quebraria todos os outros). Registre no relatório e **sugira o
-   stub** (assinatura + `throw new UnsupportedOperationException()`) para um humano criar.
+   código, não gere o teste (ele não compilaria e quebraria todos os outros). Registre no relatório (a spec pode
+   estar desatualizada ou a implementação incompleta).
 5. **O valor esperado vem só da spec.** Nunca leia a implementação para decidir o que um assert espera, nunca rode
    o código para "descobrir" o resultado e nunca altere um assert para fazer um teste passar. Você só pode ler o
    código de produção para saber **assinaturas** (nomes, parâmetros, tipos, exceções declaradas, visibilidade e
-   como construir o objeto). Você pode corrigir apenas **erros de compilação** dos testes que acabou de gerar.
+   como construir o objeto). Nos testes que acabou de gerar, você só pode corrigir **erros de compilação**; nos
+   já existentes, só vale a regra 2.
 6. **Teste falhando:** mantenha o teste e registre no relatório (teste, regra, esperado pela spec, obtido).
    Não diga se o erro é do código ou da spec.
-7. **O PIT considera só os testes que passam.** Testes falhando (ex.: regras ainda não implementadas) são
+7. **O PIT considera só os testes que passam.** Testes falhando são
    ignorados pelo PIT (`-Dpit.skipFailingTests=true`). No relatório, deixe claro que o resultado do PIT exclui os
    testes falhando e liste quais foram. Se **nenhum** teste passar, não rode o PIT e escreva "PIT não executado".
 8. **Mutante vivo sem regra correspondente na spec:** não invente regra nem teste. Registre no relatório (pode
    ser uma regra faltando na spec ou código morto).
-9. **Regras ainda não implementadas também são testadas** (TDD), desde que a API exista (regra 4). Se o teste
-   falhar, aplica-se a regra 6.
+9. **O código já está implementado quando você roda** (os testes são escritos depois do código, não em TDD).
+   Teste que falha indica divergência entre a spec e o código, e aplica-se a regra 6.
 10. **Testes derivados:** além dos Exemplos da spec, você pode criar até **3 testes derivados por regra**, usando
     classes de equivalência e valores-limite. Condições:
     - o esperado tem que ser calculável **só pelo texto da spec**;
@@ -80,7 +84,7 @@ Ignore qualquer item que não seja uma classe de `services/database-service/src/
 - Uma classe de teste por classe de produção, **no mesmo pacote**, com o nome `<Classe>AgenteTest`
   (ex.: `EmprestimoRelationshipAgenteTest`). O sufixo `AgenteTest` evita conflito com testes humanos e faz o
   Surefire encontrar a classe.
-- Se o arquivo já existir, leia antes e **acrescente** só o que falta.
+- Se o arquivo já existir, leia antes, **acrescente** só o que falta e atualize ou apague os obsoletos (regra 2).
 - Teste de Exemplo: `@DisplayName("E13 (R8, R12): <descrição curta em português>")`.
 - Teste derivado: `@DisplayName("R12 (derivado): <descrição>")` **e** `@Tag("derivado")`.
 - Agrupe com `@Nested` por grupo de regras da spec (ex.: Criação, Devolução, Vencimento) quando ajudar a leitura.
@@ -138,13 +142,11 @@ português, neste formato:
 ### Testes falhando
 - `E21 (R13)`: esperado pela spec `false`, obtido `IllegalStateException: ...`
 
+### Testes atualizados ou apagados (obsoletos pela spec)
+- `E14 (R9)` atualizado: a spec agora diz que página inválida vira 0 (R9), o teste esperava `IllegalArgumentException`.
+
 ### Regras não testadas (API inexistente)
-- R5, R6, R7: `registrarDevolucao(LocalDate, LocalDate)` não existe. Stub sugerido:
-  ```java
-  public void registrarDevolucao(LocalDate dataDevolucao, LocalDate hoje) {
-      throw new UnsupportedOperationException();
-  }
-  ```
+- R5, R6, R7: `registrarDevolucao(LocalDate, LocalDate)` não existe no código.
 
 ### Ambiguidades na spec
 ### Mutantes vivos sem regra na spec
