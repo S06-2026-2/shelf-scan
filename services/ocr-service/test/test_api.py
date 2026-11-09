@@ -1,3 +1,5 @@
+import copy
+import logging
 import threading
 import time
 from pathlib import Path
@@ -10,6 +12,7 @@ from api import main
 from api.main import app, load_detector
 from ocr import exceptions
 from ocr.exceptions import OcrError
+from ocr.structurer import GeminiLlm
 
 SAMPLE_PATH = Path(__file__).resolve().parent.parent / "samples" / "memorias_subsolo.jpg"
 EMPTY_BOOK = {"nome": None, "volume": None, "autores": None, "editora": None}
@@ -40,6 +43,13 @@ def upload(client, data, filename="capa.jpg", content_type="image/jpeg"):
 def client():
     """Cliente sem o lifespan: cada teste define o estado do modelo que quer simular"""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def no_agent(monkeypatch):
+    """Por padrão a API roda sem o agente: nenhum teste chama o Gemini de verdade,
+    mesmo se a chave estiver no ambiente. Quem testa o agente troca por um LLM falso."""
+    monkeypatch.setattr(app.state, "llm", None, raising=False)
 
 
 def set_model_status(status, detector=None):
@@ -484,3 +494,151 @@ class TestErrorDocs:
             "loading": {"status": "loading"},
             "error": {"status": "error"},
         }
+
+
+# Resposta do pipeline antes do agente: o OCR leu texto, mas os campos ainda estão vazios
+UNSTRUCTURED_RESPONSE = {
+    "books": [EMPTY_BOOK],
+    "raw_text": "MEMÓRIAS\nDO\nSUBSOLO\nDOSTOIÉVSKI",
+    "result": "unstructured",
+    "meta": {"detector": "east", "elapsed_ms": 900},
+}
+AGENT_BOOK = {"nome": "Memórias do Subsolo", "volume": None, "autores": ["Dostoiévski"], "editora": "Editora 34"}
+
+
+def pipeline_returning(response):
+    """Pipeline falso que devolve uma cópia da resposta combinada (o structure não pode alterar a original)"""
+    def fake_pipeline(img_bytes, detector):
+        return copy.deepcopy(response)
+    return fake_pipeline
+
+
+class FakeLlm:
+    """LLM falso da API: anota o texto recebido e se o lock do pipeline estava preso na hora"""
+
+    def __init__(self, book=None, error=None):
+        self.book = book
+        self.error = error
+        self.calls = []
+        self.lock_was_held = []
+
+    def extract_book(self, raw_text):
+        self.calls.append(raw_text)
+        self.lock_was_held.append(main.PIPELINE_LOCK.locked())
+        if self.error:
+            raise self.error
+        return dict(self.book) if self.book else None
+
+
+class TestStructuringAgent:
+    """
+        POST /v1/extraction com o agente: o livro estruturado chega ao cliente, e a falta
+        ou a falha do agente nunca vira erro HTTP
+    """
+
+    @pytest.fixture(autouse=True)
+    def ready(self, monkeypatch):
+        set_model_status("ready", detector=DetectorWithoutRegions())
+        monkeypatch.setattr("api.main.run_pipeline", pipeline_returning(UNSTRUCTURED_RESPONSE))
+
+    def use_agent(self, monkeypatch, llm):
+        monkeypatch.setattr(app.state, "llm", llm)
+        return llm
+
+    def test_structured_book_reaches_the_client(self, client, monkeypatch):
+        self.use_agent(monkeypatch, FakeLlm(AGENT_BOOK))
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["books"] == [AGENT_BOOK]
+        assert body["result"] == "structured"
+        assert body["raw_text"] == UNSTRUCTURED_RESPONSE["raw_text"]
+        assert body["meta"]["elapsed_ms"] >= 900
+
+    def test_agent_receives_the_raw_text(self, client, monkeypatch):
+        llm = self.use_agent(monkeypatch, FakeLlm(AGENT_BOOK))
+
+        upload(client, SAMPLE_PATH.read_bytes())
+
+        assert llm.calls == [UNSTRUCTURED_RESPONSE["raw_text"]]
+
+    def test_agent_runs_outside_the_pipeline_lock(self, client, monkeypatch):
+        """Enquanto o agente espera o Gemini, a próxima foto já pode usar o EAST"""
+        llm = self.use_agent(monkeypatch, FakeLlm(AGENT_BOOK))
+
+        upload(client, SAMPLE_PATH.read_bytes())
+
+        assert llm.lock_was_held == [False]
+
+    def test_without_agent_the_response_is_unchanged(self, client):
+        """Sem chave (llm=None): a mesma resposta de antes do agente existir"""
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 200
+        assert response.json() == UNSTRUCTURED_RESPONSE
+
+    def test_agent_failure_is_still_200(self, client, monkeypatch):
+        self.use_agent(monkeypatch, FakeLlm(error=RuntimeError("429 RESOURCE_EXHAUSTED")))
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.status_code == 200
+        assert response.json()["result"] == "unstructured"
+        assert response.json()["books"] == [EMPTY_BOOK]
+
+    def test_no_text_does_not_call_the_agent(self, client, monkeypatch):
+        llm = self.use_agent(monkeypatch, FakeLlm(AGENT_BOOK))
+        monkeypatch.setattr("api.main.run_pipeline", pipeline_returning(VALID_RESPONSE))
+
+        response = upload(client, SAMPLE_PATH.read_bytes())
+
+        assert response.json()["result"] == "no_text"
+        assert llm.calls == []
+
+
+class TestLoadLlm:
+    """
+        O agente liga só com GEMINI_API_KEY; sem ela (ou se o cliente não puder ser criado),
+        a API sobe normalmente, sem o agente
+    """
+
+    def test_with_key_the_agent_is_on(self, monkeypatch):
+        monkeypatch.setenv("GEMINI_API_KEY", "chave-de-teste")
+
+        assert isinstance(main.load_llm(), GeminiLlm)
+
+    def test_without_key_the_agent_is_off(self, monkeypatch):
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+        assert main.load_llm() is None
+
+    def test_empty_key_the_agent_is_off(self, monkeypatch, caplog):
+        """O compose passa GEMINI_API_KEY vazia quando a chave não está no .env: é só um
+        aviso de agente desligado, não um erro com traceback a cada subida"""
+        monkeypatch.setenv("GEMINI_API_KEY", "")
+
+        with caplog.at_level(logging.WARNING):
+            assert main.load_llm() is None
+
+        assert [record for record in caplog.records if record.levelno >= logging.ERROR] == []
+        assert any("desligado" in record.getMessage() for record in caplog.records)
+
+    def test_client_failure_turns_the_agent_off(self, monkeypatch):
+        monkeypatch.setenv("GEMINI_API_KEY", "chave-de-teste")
+
+        def broken_client(*args, **kwargs):
+            raise ValueError("cliente quebrado")
+
+        monkeypatch.setattr("api.main.genai.Client", broken_client)
+
+        assert main.load_llm() is None
+
+    def test_lifespan_sets_the_agent(self, monkeypatch):
+        agent = FakeLlm(AGENT_BOOK)
+        monkeypatch.setattr("api.main.load_llm", lambda: agent)
+        monkeypatch.setattr("api.main.load_detector", lambda state, model_path: None)  # sem carregar o EAST
+
+        with TestClient(app):  # o "with" dispara o lifespan
+            assert app.state.llm is agent

@@ -14,6 +14,8 @@ services:
       - "8301:8301"
     environment:
       CORS_ORIGENS_PERMITIDAS: ${CORS_ORIGENS_PERMITIDAS:-http://localhost:5173}
+      # Chave do agente estruturador, lida do .env da raiz; vazia, o agente fica desligado
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     healthcheck:
       # /health só responde 200 com o modelo EAST carregado (o urllib dá erro no 503)
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8301/health')"]
