@@ -62,6 +62,7 @@ Formato **Problem Details** (RFC 9457), que o Spring já suporta com `ProblemDet
 | `IllegalArgumentException` | `400` | Valor inválido para a regra (ex.: página atual maior que o total, prazo de 0 dias) |
 | `NoSuchElementException` | `404` | Recurso não existe **ou não é do usuário** (não revela dados de outras pessoas) |
 | `IllegalStateException` | `409` | Conflito com o estado atual (email repetido, livro já emprestado, apagar estante padrão) |
+| `AgenteIndisponivelException` | `503` | Agente de IA sem chave, fora do ar, sem cota ou sem resposta a tempo (nada é alterado) |
 
 ---
 
@@ -136,6 +137,34 @@ Autores e tags:
 
 O `POST` de livro é o passo final do fluxo do OCR: o frontend recebe título/autor do ocr-service, o usuário confirma
 na tela "Confirmar livro" e o frontend envia o `NovoLivro` para cá.
+
+### Enriquecimento por agente de IA
+
+| Método | Rota | Corpo | Resposta | Erros |
+| --- | --- | --- | --- | --- |
+| `POST` | `/usuario/{usuarioId}/livro/{livroId}/enriquecimento` | `PedidoEnriquecimento` (opcional) | `200` `Enriquecimento` | `400` · `404` não é do usuário · `503` agente indisponível |
+
+O **agente enriquecedor** (Gemini, `gemini-3.5-flash-lite`) recebe título, autores, volume e ISBN do livro (e o texto
+bruto do OCR, se vier) e sugere **sinopse, ISBN, páginas, autores e tags**.
+- **Só preenche campos vazios**: nunca sobrescreve o que o usuário cadastrou. Para corrigir, use o `PATCH` do livro.
+- **Travas contra alucinação**: o modelo diz se reconheceu a obra (`livroIdentificado`; se não, nada muda); ISBN só
+  com dígito verificador válido; páginas entre 1 e 10.000; sinopse até 1.500 caracteres; até 5 autores e 5 tags;
+  total de páginas menor que a página lida é descartado.
+- Configuração: variável `GEMINI_API_KEY` (sem ela a rota responde `503`) e `GEMINI_MODELO` (opcional).
+
+```json
+// PedidoEnriquecimento (corpo opcional)
+{ "textoBruto": "MEMORIAS DO SUBSOLO DOSTOIEVSKI EDITORA 34" }
+
+// Enriquecimento
+{
+  "livro": { "id": 8, "titulo": "Memórias do Subsolo", "sinopse": "...", "isbn": "9788573261585", "...": "..." },
+  "camposPreenchidos": ["sinopse", "isbn", "paginas", "tags"],
+  "livroIdentificado": true,
+  "modelo": "gemini-3.5-flash-lite",
+  "aviso": "Dados gerados por IA: confira antes de confiar. Corrija pelo PATCH do livro."
+}
+```
 
 ## Empréstimos
 
@@ -347,6 +376,6 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 - Autenticação (o usuário vem da rota).
 - Perda de histórico ao apagar: apagar um usuário ou um livro apaga os empréstimos (e as leituras guardadas neles).
 - Relações entre usuários: `AMIGO` (usuários comuns) e `SEGUE` (cliente → biblioteca).
-- Recomendações e enriquecimento por agente de IA.
+- Recomendações por agente de IA.
 - Paginação das listas.
 - Diferenciar autores homônimos (hoje o mesmo nome é o mesmo autor).

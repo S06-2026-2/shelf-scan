@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.controller;
 
+import br.com.virabrequim.database_service.agente.AgenteIndisponivelException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,12 @@ public class TratadorDeErros extends ResponseEntityExceptionHandler {
     public ProblemDetail violacaoDeRestricao(DataIntegrityViolationException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "Já existe um registro com esses dados (ex.: email em uso).");
+    }
+
+    // Agente de IA fora do ar, sem chave ou sem cota: o livro não foi alterado e o resto da API segue funcionando
+    @ExceptionHandler(AgenteIndisponivelException.class)
+    public ProblemDetail agenteIndisponivel(AgenteIndisponivelException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     // Stubs do TDD (métodos ainda não implementados) respondem 501 em vez de 500

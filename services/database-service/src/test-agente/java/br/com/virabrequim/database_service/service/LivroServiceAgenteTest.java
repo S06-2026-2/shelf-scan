@@ -349,14 +349,14 @@ class LivroServiceAgenteTest {
     class BuscarEListar {
 
         @Test
-        @DisplayName("E8 (L1): livro inexistente lança NoSuchElementException")
+        @DisplayName("E12 (L1): livro inexistente lança NoSuchElementException")
         void buscarInexistente() {
             when(livroRepository.findById(5L)).thenReturn(Optional.empty());
             assertThrows(NoSuchElementException.class, () -> service.buscar(5L));
         }
 
         @Test
-        @DisplayName("E9 (L4): lista os livros de uma estante do usuário; estante de outro lança NoSuchElementException")
+        @DisplayName("E13 (L4): lista os livros de uma estante do usuário; estante de outro lança NoSuchElementException")
         void listarDaEstante() {
             LivroNode a = livroNovo("A");
             LivroNode b = livroNovo("B");
@@ -372,7 +372,7 @@ class LivroServiceAgenteTest {
     class Mover {
 
         @Test
-        @DisplayName("E10 (L8): mover para a estante 11 troca a estante e salva")
+        @DisplayName("E19 (L8): mover para a estante 11 troca a estante e salva")
         void mover() {
             service.mover(1L, 5L, 11L);
             assertAll(
@@ -381,20 +381,20 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E11 (L8): estante de destino de outro usuário lança NoSuchElementException e nada é salvo")
+        @DisplayName("E20 (L8): estante de destino de outro usuário lança NoSuchElementException e nada é salvo")
         void destinoDeOutro() {
             assertThrows(NoSuchElementException.class, () -> service.mover(1L, 5L, 20L));
             verify(livroRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("E12 (L7): usuário que não é dono lança NoSuchElementException")
+        @DisplayName("E21 (L7): usuário que não é dono lança NoSuchElementException")
         void naoDono() {
             assertThrows(NoSuchElementException.class, () -> service.mover(2L, 5L, 20L));
         }
 
         @Test
-        @DisplayName("E13 (L8): mover livro emprestado é aceito")
+        @DisplayName("E22 (L8): mover livro emprestado é aceito")
         void moverEmprestado() {
             livro5.getEmprestimos().add(emprestimoAtivoPara(bruno));
             assertDoesNotThrow(() -> service.mover(1L, 5L, 11L));
@@ -432,14 +432,14 @@ class LivroServiceAgenteTest {
     class Remover {
 
         @Test
-        @DisplayName("E14 (L9): livro sem empréstimos é apagado")
+        @DisplayName("E23 (L9): livro sem empréstimos é apagado")
         void semEmprestimos() {
             service.remover(1L, 5L);
             verify(livroRepository).delete(livro5);
         }
 
         @Test
-        @DisplayName("E15 (L9): livro com empréstimo ativo lança IllegalStateException e não é apagado")
+        @DisplayName("E24 (L9): livro com empréstimo ativo lança IllegalStateException e não é apagado")
         void comEmprestimoAtivo() {
             livro5.getEmprestimos().add(emprestimoAtivoPara(bruno));
             assertThrows(IllegalStateException.class, () -> service.remover(1L, 5L));
@@ -447,7 +447,7 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E16 (L9): livro só com empréstimos devolvidos é apagado")
+        @DisplayName("E25 (L9): livro só com empréstimos devolvidos é apagado")
         void soDevolvidos() {
             livro5.getEmprestimos().add(emprestimoDevolvidoPara(bruno));
             service.remover(1L, 5L);
@@ -455,7 +455,7 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E17 (L7): usuário que não é dono lança NoSuchElementException e não apaga")
+        @DisplayName("E26 (L7): usuário que não é dono lança NoSuchElementException e não apaga")
         void naoDono() {
             assertThrows(NoSuchElementException.class, () -> service.remover(2L, 5L));
             verify(livroRepository, never()).delete(any());
@@ -475,7 +475,7 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E18 (L10): o dono atualiza a leitura do livro, não a do empréstimo")
+        @DisplayName("E27 (L10): o dono atualiza a leitura do livro, não a do empréstimo")
         void donoAtualizaLivro() {
             service.atualizarLeitura(1L, 5L, StatusLeitura.LENDO, 80);
             assertAll(
@@ -489,7 +489,7 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E19 (L10): quem pegou emprestado atualiza a leitura do empréstimo ativo, não a do livro")
+        @DisplayName("E28 (L10): quem pegou emprestado atualiza a leitura do empréstimo ativo, não a do livro")
         void mutuarioAtualizaEmprestimo() {
             service.atualizarLeitura(2L, 5L, StatusLeitura.LIDO, null);
             assertAll(
@@ -504,7 +504,7 @@ class LivroServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E20 (L10): usuário sem relação com o livro lança NoSuchElementException e nada é salvo")
+        @DisplayName("E29 (L10): usuário sem relação com o livro lança NoSuchElementException e nada é salvo")
         void semRelacao() {
             assertThrows(NoSuchElementException.class,
                     () -> service.atualizarLeitura(3L, 5L, StatusLeitura.LENDO, 10));
@@ -753,6 +753,36 @@ class LivroServiceAgenteTest {
             assertAll(
                     () -> verify(autorRepository, never()).apagarOrfaos(anyCollection()),
                     () -> verify(tagRepository, never()).apagarOrfas(anyCollection()));
+        }
+    }
+
+    @Nested
+    @DisplayName("Buscar do dono")
+    class BuscarDoDono {
+
+        @Test
+        @DisplayName("E32 (L7): a dona recebe o livro 5")
+        void dona() {
+            assertSame(livro5, service.buscarDoDono(1L, 5L));
+        }
+
+        @Test
+        @DisplayName("E33 (L7): usuário que não é dono lança NoSuchElementException")
+        void naoDono() {
+            assertThrows(NoSuchElementException.class, () -> service.buscarDoDono(2L, 5L));
+        }
+
+        @Test
+        @DisplayName("E34 (L1): usuário inexistente lança NoSuchElementException")
+        void usuarioInexistente() {
+            assertThrows(NoSuchElementException.class, () -> service.buscarDoDono(99L, 5L));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("L1 (derivado): buscarDoDono de livro inexistente lança NoSuchElementException")
+        void livroInexistente() {
+            assertThrows(NoSuchElementException.class, () -> service.buscarDoDono(1L, 99L));
         }
     }
 }

@@ -53,6 +53,8 @@ services:
       - SPRING_NEO4J_URI=bolt://neo4j:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
       - SPRING_NEO4J_AUTHENTICATION_PASSWORD=shelfscan123
+      # Chave do agente enriquecedor (mesma do OCR, lida do .env da raiz); vazia, o agente fica desligado
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     depends_on:
       - neo4j
   # -----------------------------------------------------------------

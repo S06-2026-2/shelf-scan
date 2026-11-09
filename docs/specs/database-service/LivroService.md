@@ -36,6 +36,7 @@ editar ou remover um livro (`apagarOrfaos` / `apagarOrfas`).
 | `LivroService(UsuarioRepository usuarioRepository, LivroRepository livroRepository, AutorRepository autorRepository, TagRepository tagRepository, Calendario calendario)` | Injeção pelo construtor | — |
 | `LivroNode adicionar(Long usuarioId, LivroNode livro, Long estanteId, StatusLeitura status, Integer paginaAtual)` | Adiciona um livro (estante e leitura opcionais) | L1–L6, L11 |
 | `LivroNode buscar(Long livroId)` | Busca pelo id | L1 |
+| `LivroNode buscarDoDono(Long usuarioId, Long livroId)` | Busca o livro conferindo o dono (usado pelo enriquecimento) | L1, L7 |
 | `List<LivroNode> listarDaEstante(Long usuarioId, Long estanteId)` | Livros de uma estante | L1, L4 |
 | `LivroNode atualizar(Long usuarioId, Long livroId, AtualizacaoLivro dados)` | Edita os dados do livro (PATCH) | L1, L7, L11–L13 |
 | `LivroNode mover(Long usuarioId, Long livroId, Long estanteDestinoId)` | Troca a estante | L1, L7, L8 |
@@ -91,7 +92,7 @@ Entidades e DTOs:
 
 **Dono**
 
-- **L7.** Em `atualizar`, `mover` e `remover`, o livro tem que ser do usuário (`findDonoDoLivro`). Se não for, lança
+- **L7.** Em `buscarDoDono`, `atualizar`, `mover` e `remover`, o livro tem que ser do usuário (`findDonoDoLivro`). Se não for, lança
   `NoSuchElementException` (não revela que o livro existe) e nada é salvo nem apagado.
 
 **Mover**
@@ -222,6 +223,12 @@ Nos exemplos de `adicionar`, `status` e `paginaAtual` são `null`, a não ser qu
   fica `LENDO` na página 0, sem exceção, e o livro é salvo.
 - **E31 (L10).** Quando chamo `atualizarLeitura(1L, 5L, null, 10)`, Então `IllegalArgumentException` e nada é salvo.
 
+**Buscar do dono**
+
+- **E32 (L7).** Quando chamo `buscarDoDono(1L, 5L)` (Ana, dona do livro 5), Então retorna o livro 5.
+- **E33 (L7).** Quando chamo `buscarDoDono(2L, 5L)` (Bruno), Então `NoSuchElementException`.
+- **E34 (L1).** Quando chamo `buscarDoDono(99L, 5L)` (usuário inexistente), Então `NoSuchElementException`.
+
 ## Casos de borda
 
 - **Livro sem estante informada** vai para a padrão (E1). Não existe livro sem estante.
@@ -238,6 +245,6 @@ Nos exemplos de `adicionar`, `status` e `paginaAtual` são `null`, a não ser qu
 - As queries Cypher (`findDonoDoLivro`, `apagarOrfaos`, `apagarOrfas`, `findFirstByNomeIgnoreCase`): testadas só com
   banco real.
 - Validação do formato do ISBN.
-- Enriquecimento dos dados do livro pelo agente de IA.
+- Enriquecimento dos dados do livro pelo agente de IA (é do `EnriquecimentoService`).
 - Empréstimo e devolução (são do `EmprestimoService`).
 - Autenticação (por enquanto o `usuarioId` vem da rota).
