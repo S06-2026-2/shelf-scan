@@ -1,10 +1,13 @@
 package br.com.virabrequim.database_service.service;
 
+import br.com.virabrequim.database_service.domain.Textos;
 import br.com.virabrequim.database_service.domain.node.BibliotecaNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -38,6 +41,12 @@ public class UsuarioService {
             throw new NoSuchElementException("O id " + id + " é de uma biblioteca. Use /biblioteca/" + id + ".");
         }
         return usuario;
+    }
+
+    public List<UsuarioNode> listarUsuariosComuns() {
+        return usuarioRepository.findAllUsuariosComuns().stream()
+                .sorted(Comparator.comparing(UsuarioNode::getNome, Textos.ALFABETICA))
+                .toList();
     }
 
     public UsuarioNode atualizar(Long id, String nome, String email) {
