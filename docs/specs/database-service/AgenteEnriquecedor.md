@@ -4,116 +4,98 @@ classe: br.com.virabrequim.database_service.agente.AgenteEnriquecedor
 
 ## Contexto
 
-Agente de IA que **sugere** dados para completar um livro: sinopse, ISBN, número de páginas, autores e tags
-(gêneros). Recebe o `LivroNode` (título, autores, volume, ISBN) e, opcionalmente, o texto bruto que o OCR leu da capa,
-monta um prompt e pede ao LLM um JSON no formato de um schema fixo (saída estruturada).
+Agente de IA que **completa** um livro já identificado (pelo OCR e pelo usuário): ele não decide qual é o livro. O LLM
+recebe ferramentas para consultar catálogos, escolhe uma edição e conclui com um JSON de formato fixo. O código então
+**confere** a edição e só aproveita os dados que vieram do catálogo. O agente não grava nada: quem decide o que entra no
+livro é o `EnriquecimentoService`.
 
-O LLM pode errar ou inventar (alucinação), então a resposta passa por **travas** antes de virar
-`SugestaoEnriquecimento`. O agente não grava nada: quem decide o que entra no livro é o `EnriquecimentoService`.
+Nos testes, o `ClienteLlm` é um falso (que pode chamar as ferramentas recebidas), o `CatalogoLivros` é um mock e o
+`JsonMapper` é real.
 
-O LLM fica atrás da interface `ClienteLlm` (em produção, o `GeminiCliente`). **Nos testes, o `ClienteLlm` é um falso**
-(classe de teste ou mock do Mockito) que devolve um JSON fixo e guarda o prompt recebido. O `JsonMapper` é real
-(`new JsonMapper()`, do pacote `tools.jackson.databind.json`).
-
-Formato do JSON que o LLM devolve:
-
-```json
-{"livroIdentificado": true, "sinopse": "...", "isbn": "...", "paginas": 152,
- "autores": ["..."], "tags": ["..."]}
-```
+JSON da conclusão: `{"isbn": "...", "conheceObra": true, "sinopse": "...", "autores": ["..."], "tags": ["..."]}`
 
 ## API esperada
 
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
-| `AgenteEnriquecedor(ClienteLlm clienteLlm, JsonMapper jsonMapper)` | Injeção pelo construtor | — |
-| `SugestaoEnriquecimento sugerir(LivroNode livro, String textoBruto)` | Pede a sugestão ao LLM e aplica as travas | A1–A9 |
-| `String modelo()` | Nome do modelo usado | A10 |
-
-Colaboradores e tipos:
+| `AgenteEnriquecedor(ClienteLlm clienteLlm, CatalogoLivros catalogo, JsonMapper jsonMapper)` | Injeção | — |
+| `SugestaoEnriquecimento sugerir(LivroNode livro, String textoBruto)` | Sugestão já conferida | A1–A13 |
+| `String modelo()` | Nome do modelo usado | A14 |
 
 | Tipo | Uso |
 | --- | --- |
-| `ClienteLlm.gerarJson(String prompt, Map<String, Object> schema)` | Devolve o JSON gerado (texto) |
-| `ClienteLlm.modelo()` | Nome do modelo |
-| `record SugestaoEnriquecimento(boolean livroIdentificado, String sinopse, String isbn, Integer paginas, List<String> autores, List<String> tags)` | Resultado; `SugestaoEnriquecimento.vazia()` = `false`, `null`s e listas vazias |
-| `AgenteIndisponivelException` | Falha do agente (vira 503 na API) |
+| `ClienteLlm.gerarJson(String prompt, Map<String, Object> schema, List<Ferramenta> ferramentas)` | JSON da conclusão |
+| `record Ferramenta(String nome, String descricao, Map<String, Object> parametros, Function<Map<String, Object>, Map<String, Object>> executar)` | Função que o LLM chama |
+| `CatalogoLivros.buscaPorTituloLigada()` | `boolean`: há chave do Google Books |
+| `CatalogoLivros.buscar(String titulo, String autor, String editora)` | `List<Edicao>` (Google Books) |
+| `CatalogoLivros.porIsbn(String isbn)` | `Optional<Edicao>` (BrasilAPI) |
+| `CatalogoIndisponivelException` | O catálogo não respondeu |
+| `record SugestaoEnriquecimento(boolean encontradoNoCatalogo, boolean edicaoDigital, String sinopse, String isbn, Integer paginas, String editora, List<String> autores, Fonte fonteAutores, List<String> tags, List<String> consultas)` | Resultado |
+
+`SugestaoEnriquecimento.vazia(consultas)`: `false` nos dois `boolean`, `null`s, listas vazias e `fonteAutores` = `IA`. `Fonte` é `CATALOGO` ou
+`IA`. A conferência de uma edição com o livro é da `ConferenciaEdicao`.
 
 ## Regras
 
-**Prompt**
+**Prompt e ferramentas**
 
-- **A1.** `sugerir` chama `gerarJson` **uma vez**. O prompt contém o título do livro, os nomes dos autores, o volume e o
-  ISBN cadastrados. Se `textoBruto` não for `null` nem em branco, o prompt também contém o texto bruto (sem espaços
-  nas pontas), cortado nos primeiros **2000** caracteres.
+- **A1.** `gerarJson` é chamado **uma vez**. O prompt contém título, autores, volume, editora e ISBN do livro e, se
+  `textoBruto` não for `null` nem em branco, o texto sem espaços nas pontas, cortado em **2000** caracteres.
+- **A2.** Ferramentas: `buscarEdicoes` (argumentos `titulo` e, opcionais, `autor` e `editora`; só se `buscaPorTituloLigada()`) e
+  `consultarIsbn` (argumento `isbn`).
+- **A3.** `buscarEdicoes` devolve ao LLM no máximo 10 edições, as que conferem primeiro e, entre elas,
+  as não digitais antes. Cada edição traz `confereComOLivro` (resultado da
+  `ConferenciaEdicao` com tudo que já se sabe do ISBN), `isbn`, `titulo`,
+  `subtitulo`, `autores`, `editora`, `paginas`, `digital` e `sinopse`.
+- **A4.** ISBN inválido, não encontrado ou catálogo indisponível: a ferramenta devolve `erro` e a conversa continua.
+- **A5.** O LLM pode consultar no máximo **2** ISBNs de memória, isto é, que não vieram de uma consulta anterior nem são o
+  do livro. A partir do terceiro, a ferramenta devolve `erro` sem consultar o catálogo.
 
 **Resposta**
 
-- **A2.** Se o texto devolvido não for um JSON válido, lança `AgenteIndisponivelException`. Exceções lançadas pelo
-  `ClienteLlm` (inclusive `AgenteIndisponivelException`) não são capturadas.
-- **A3.** Se `livroIdentificado` for `false` ou estiver ausente, retorna
-  `SugestaoEnriquecimento.vazia()`, **mesmo que os outros campos venham preenchidos**.
-- **A4.** Com `livroIdentificado` = `true`, a sugestão tem `livroIdentificado` = `true` e os campos de A5–A9.
-
-**Travas**
-
-- **A5. Sinopse:** texto sem espaços nas pontas. `null`, em branco, não texto ou com mais de **1500** caracteres (depois
-  de tirar os espaços das pontas) vira `null`.
-- **A6. ISBN:** o texto passa por `Isbn.normalizado` (ver a spec `Isbn`): inválido vira `null`; válido vem sem hífens
-  e espaços.
-- **A7. Páginas:** só número inteiro entre **1 e 10.000** (inclusive). Fora disso, `null`, decimal ou texto
-  (ex.: `"152"`) vira `null`.
-- **A8. Autores e tags:** cada item da lista vira texto com espaços normalizados (sem espaços nas pontas e com espaços
-  repetidos juntados). São descartados: itens que não são texto, em branco, com mais de **120** caracteres (autores) ou
-  **40** caracteres (tags), e **repetidos**, comparando sem acentos e sem diferenciar maiúsculas (fica o primeiro).
-- **A9.** No máximo **5** autores e **5** tags (os primeiros que passaram por A8). Lista ausente ou `null` vira lista
-  vazia.
-
-**Modelo**
-
-- **A10.** `modelo()` retorna o `modelo()` do `ClienteLlm`.
+- **A6.** Texto que não é JSON lança `AgenteIndisponivelException`. Exceções do `ClienteLlm` não são capturadas.
+- **A7.** O ISBN conferido é o já cadastrado no livro, se for válido; senão, o da conclusão. Se ele ainda não foi
+  consultado na BrasilAPI, o agente consulta. A edição é aceita se a `ConferenciaEdicao.mesmoLivro` aceita o conjunto das
+  edições encontradas com esse ISBN.
+- **A8.** Sem edição aceita: `encontradoNoCatalogo` = `false` e ISBN, páginas e editora `null`. Se além disso `conheceObra`
+  for `false` ou ausente, a sugestão é `vazia(consultas)`.
+- **A9.** Com edição aceita: ISBN-13, páginas e editora saem do **catálogo**, da BrasilAPI antes do Google Books.
+  Páginas fora de 1 a 10.000 são ignoradas. `edicaoDigital` = `true` se algum catálogo diz que esse ISBN é digital (a edição
+  digital é aceita, só é avisada); sem edição aceita, `false`.
+- **A10. Sinopse:** texto sem espaços nas pontas; em branco, não texto ou com mais de **1500** caracteres vira `null`.
+- **A11. Autores e tags:** espaços normalizados; descarta itens que não são texto, em branco, com mais de **120** (autores)
+  ou **40** (tags) caracteres e repetidos (sem acentos e maiúsculas). No máximo **5** de cada; lista ausente vira vazia.
+- **A12.** `fonteAutores` é `CATALOGO` se há autores e todos aparecem na edição aceita; senão `IA`.
+- **A13.** `consultas` lista as consultas aos catálogos, na ordem, com o resultado de cada uma.
+- **A14.** `modelo()` retorna o `modelo()` do `ClienteLlm`.
 
 ## Exemplos
 
-Livro dos exemplos: `new LivroNode("Memórias do Subsolo")` com autores `[new AutorNode("Fiódor Dostoiévski")]`,
-sem volume e sem ISBN. `textoBruto` = `null`, a não ser quando estiver escrito.
+Livro: "Memórias do Subsolo", de Fiódor Dostoiévski. Edição certa: ISBN 9788573261585, Editora 34.
 
-- **E1 (A4–A9).** Dado o LLM devolvendo `{"livroIdentificado": true, "sinopse": "Um homem amargurado narra sua vida.",
-  "isbn": "978-85-7326-158-5", "paginas": 152, "autores": ["Fiódor Dostoiévski"], "tags": ["romance", "clássico"]}`,
-  Então a sugestão tem `livroIdentificado` = `true`, sinopse "Um homem amargurado narra sua vida.", ISBN
-  "9788573261585", 152 páginas, autores ["Fiódor Dostoiévski"] e tags ["romance", "clássico"].
-- **E2 (A3).** Dado `{"livroIdentificado": false, "sinopse": "Inventada", "isbn": null, "paginas": 100,
-  "autores": [], "tags": ["romance"]}`, Então a sugestão é igual a `SugestaoEnriquecimento.vazia()`.
-- **E3 (A3).** Dado `{"sinopse": "Algo", "paginas": 100}` (sem `livroIdentificado`), Então a sugestão é igual a
-  `SugestaoEnriquecimento.vazia()`.
-- **E4 (A5, A6, A7).** Dado `livroIdentificado` = `true`, sinopse com 1501 letras "a", ISBN "9788535914848" (dígito
-  errado) e `paginas` = 0, Então sinopse, ISBN e páginas são `null`.
-- **E5 (A5).** Dado `livroIdentificado` = `true` e sinopse `"  Texto curto.  "`, Então a sinopse é "Texto curto.".
-  Com sinopse `"   "`, Então a sinopse é `null`.
-- **E6 (A7).** Dado `livroIdentificado` = `true`: com `paginas` = 10000, Então 10000; com 10001, Então `null`; com
-  `"152"` (texto), Então `null`.
-- **E7 (A8, A9).** Dado `livroIdentificado` = `true` e tags `["Ficção", "ficcao", " ", "drama", "romance", "clássico",
-  "russo", "filosofia"]`, Então as tags são `["Ficção", "drama", "romance", "clássico", "russo"]`.
-- **E8 (A8).** Dado `livroIdentificado` = `true` e autores `["  Ana   Maria ", "ANA MARIA", 42]`, Então os autores são
-  `["Ana Maria"]`.
-- **E9 (A9).** Dado `livroIdentificado` = `true` sem os campos `autores` e `tags`, Então as duas listas são vazias.
-- **E10 (A1).** Quando chamo `sugerir(livro, "MEMORIAS DO SUBSOLO editora 34")`, Então o prompt recebido pelo
-  `ClienteLlm` contém "Memórias do Subsolo", "Fiódor Dostoiévski" e "MEMORIAS DO SUBSOLO editora 34".
-- **E11 (A1).** Quando chamo `sugerir(livro, "   ")`, Então `gerarJson` é chamado uma vez e o prompt não contém
-  "textoDoOcr".
-- **E12 (A2).** Dado o LLM devolvendo `isso não é json`, Então `sugerir` lança `AgenteIndisponivelException`.
-- **E13 (A2).** Dado o `ClienteLlm` lançando `AgenteIndisponivelException("sem chave")`, Então `sugerir` lança a mesma
-  exceção.
-- **E14 (A10).** Dado o `ClienteLlm` com `modelo()` = "falso", Então `modelo()` retorna "falso".
-
-## Casos de borda
-
-- **O LLM "reconhece" o livro, mas inventa um ISBN com dígito verificador válido:** passa pela trava (A6). Por isso a
-  API devolve um aviso de que os dados vêm de IA.
-- **Texto bruto enorme** (ex.: OCR de uma página inteira) é cortado em 2000 caracteres (A1), para não gastar cota.
+- **E1 (A7, A9, A12).** Dado que a busca traz a edição certa com 140 páginas e a BrasilAPI com 152, e a conclusão com o
+  ISBN "978-85-7326-158-5", Então `encontradoNoCatalogo` = `true`, ISBN "9788573261585", 152 páginas, "Editora 34" e
+  `fonteAutores` = `CATALOGO`.
+- **E2 (A8).** Dada a conclusão com um ISBN que a BrasilAPI diz ser de "100 receitas de macarrão" e `conheceObra` =
+  `true`, Então ISBN, páginas e editora são `null`, mas a sinopse e as tags ficam.
+- **E3 (A7).** Dada a conclusão com um ISBN que nenhum catálogo conhece, Então o ISBN é `null`.
+- **E4 (A7).** Dado que o Google Books confere e a BrasilAPI traz outro título para o mesmo ISBN, Então
+  `encontradoNoCatalogo` = `false`.
+- **E5 (A7).** Dado o livro com ISBN 9788573261585 e a conclusão com outro, Então vale a edição do ISBN do livro e o outro
+  não é consultado.
+- **E6 (A8).** Dada a conclusão com `isbn` `null` e `conheceObra` = `false`, Então a sugestão é vazia, mesmo com sinopse e
+  tags na conclusão.
+- **E7 (A4).** Dado o catálogo lançando `CatalogoIndisponivelException`, Então a ferramenta devolve `erro`, nada é lançado e
+  a sinopse fica.
+- **E8 (A5).** Dado o LLM consultando 3 ISBNs de memória, Então o terceiro não chega ao catálogo.
+- **E9 (A2).** Dado `buscaPorTituloLigada()` = `false`, Então a única ferramenta é `consultarIsbn`.
+- **E10 (A11).** Dadas as tags `["Ficção", "ficcao", " ", "drama", "romance", "clássico", "russo", "filosofia"]`, Então as
+  tags são `["Ficção", "drama", "romance", "clássico", "russo"]`.
+- **E11 (A9).** Com 10000 ou 1 página no catálogo, o valor é aceito; com 10001 ou `null`, as páginas são `null`.
+- **E12 (A6).** Dado o LLM devolvendo `isso não é json`, Então `AgenteIndisponivelException`.
 
 ## Fora do escopo
 
-- O texto exato do prompt e do schema (só o que A1 diz que o prompt contém).
-- A chamada HTTP ao Gemini (`GeminiCliente`): testada só com a API real.
+- O texto do prompt e a conversa HTTP com o Gemini (`GeminiCliente`) e com os catálogos (`CatalogoLivros`), que têm
+  testes próprios com servidor falso.
 - Decidir quais sugestões entram no livro (é do `EnriquecimentoService`).

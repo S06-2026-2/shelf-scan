@@ -19,6 +19,7 @@ Classe utilitária (sem estado, construtor privado).
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
 | `static String normalizado(String isbn)` | ISBN normalizado ou `null` se inválido | I1–I4 |
+| `static String como13(String isbn)` | ISBN-13 equivalente ou `null` se inválido | I5 |
 
 ## Regras
 
@@ -28,6 +29,8 @@ Classe utilitária (sem estado, construtor privado).
   ISBN-10 válido (9 dígitos + dígito ou `X`, com dígito verificador certo).
 - **I4.** Qualquer outra coisa retorna `null`: dígito verificador errado, tamanho diferente de 10 ou 13, letras, `X`
   fora da última posição do ISBN-10, `X` no ISBN-13, texto vazio.
+- **I5.** `como13` valida pelas mesmas regras (I1–I4). ISBN-13 volta normalizado. ISBN-10 vira `978` + os 9 primeiros
+  dígitos + o dígito verificador do ISBN-13.
 
 ## Exemplos
 
@@ -40,6 +43,8 @@ Classe utilitária (sem estado, construtor privado).
 - **E7 (I4).** `normalizado("123")`, `normalizado("")` e `normalizado("abcdefghij")` = `null`.
 - **E8 (I4).** `normalizado("978853591484X")` = `null` (`X` não vale no ISBN-13).
 - **E9 (I1).** `normalizado(null)` = `null`.
+- **E10 (I5).** `como13("85-359-1484-6")` e `como13("978-85-359-1484-9")` = "9788535914849"; `como13("8535914847")` e
+  `como13(null)` = `null`.
 
 ## Casos de borda
 
@@ -49,4 +54,4 @@ Classe utilitária (sem estado, construtor privado).
 ## Fora do escopo
 
 - Conferir se o ISBN existe ou é do livro (precisaria consultar uma base externa).
-- Converter ISBN-10 em ISBN-13.
+- Converter ISBN-13 em ISBN-10.
