@@ -1,5 +1,7 @@
 package br.com.virabrequim.database_service.agente;
 
+import br.com.virabrequim.database_service.agente.catalogo.CatalogoLivros;
+import br.com.virabrequim.database_service.agente.catalogo.Edicao;
 import br.com.virabrequim.database_service.domain.node.AutorNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -30,19 +33,32 @@ import static org.mockito.Mockito.when;
 class AgenteEnriquecedorAgenteTest {
 
     private ClienteLlm clienteLlm;
+    private CatalogoLivros catalogo;
     private AgenteEnriquecedor agente;
     private LivroNode livro;
 
     @BeforeEach
     void setUp() {
         clienteLlm = mock(ClienteLlm.class);
-        agente = new AgenteEnriquecedor(clienteLlm, new JsonMapper());
+        catalogo = mock(CatalogoLivros.class);
+        agente = new AgenteEnriquecedor(clienteLlm, catalogo, new JsonMapper());
         livro = new LivroNode("Memórias do Subsolo");
         livro.setAutores(new ArrayList<>(List.of(new AutorNode("Fiódor Dostoiévski"))));
     }
 
     private void llmDevolve(String json) {
-        when(clienteLlm.gerarJson(anyString(), any())).thenReturn(json);
+        when(clienteLlm.gerarJson(anyString(), any(), any())).thenReturn(json);
+    }
+
+    private void catalogoTem(Integer paginas) {
+        when(catalogo.porIsbn("9788573261585")).thenReturn(Optional.of(new Edicao("9788573261585",
+                "Memórias do Subsolo", null, List.of("Fiódor Dostoiévski"), "Editora 34", paginas, null, null,
+                CatalogoLivros.BRASIL_API)));
+    }
+
+    private SugestaoEnriquecimento sugerirComPaginas(Integer paginas) {
+        catalogoTem(paginas);
+        return sugerirCom("{\"conheceObra\": true, \"isbn\": \"9788573261585\"}");
     }
 
     private SugestaoEnriquecimento sugerirCom(String json) {
@@ -52,7 +68,7 @@ class AgenteEnriquecedorAgenteTest {
 
     private String promptRecebido() {
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
-        verify(clienteLlm, times(1)).gerarJson(prompt.capture(), any());
+        verify(clienteLlm, times(1)).gerarJson(prompt.capture(), any(), any());
         return prompt.getValue();
     }
 
@@ -63,12 +79,13 @@ class AgenteEnriquecedorAgenteTest {
         @Test
         @DisplayName("E1 (A4–A9): livro identificado devolve todos os campos já tratados")
         void completo() {
+            catalogoTem(152);
             SugestaoEnriquecimento s = sugerirCom("""
-                    {"livroIdentificado": true, "sinopse": "Um homem amargurado narra sua vida.",
-                     "isbn": "978-85-7326-158-5", "paginas": 152, "autores": ["Fiódor Dostoiévski"],
+                    {"conheceObra": true, "sinopse": "Um homem amargurado narra sua vida.",
+                     "isbn": "978-85-7326-158-5", "autores": ["Fiódor Dostoiévski"],
                      "tags": ["romance", "clássico"]}""");
             assertAll(
-                    () -> assertTrue(s.livroIdentificado()),
+                    () -> assertTrue(s.encontradoNoCatalogo()),
                     () -> assertEquals("Um homem amargurado narra sua vida.", s.sinopse()),
                     () -> assertEquals("9788573261585", s.isbn()),
                     () -> assertEquals(152, s.paginas()),
@@ -77,18 +94,18 @@ class AgenteEnriquecedorAgenteTest {
         }
 
         @Test
-        @DisplayName("E2 (A3): livroIdentificado false devolve a sugestão vazia mesmo com campos preenchidos")
+        @DisplayName("E2 (A3): conheceObra false devolve a sugestão vazia mesmo com campos preenchidos")
         void naoIdentificado() {
             SugestaoEnriquecimento s = sugerirCom("""
-                    {"livroIdentificado": false, "sinopse": "Inventada", "isbn": null, "paginas": 100,
+                    {"conheceObra": false, "sinopse": "Inventada", "isbn": null, "paginas": 100,
                      "autores": [], "tags": ["romance"]}""");
-            assertEquals(SugestaoEnriquecimento.vazia(), s);
+            assertEquals(SugestaoEnriquecimento.vazia(List.of()), s);
         }
 
         @Test
-        @DisplayName("E3 (A3): sem livroIdentificado devolve a sugestão vazia")
+        @DisplayName("E3 (A3): sem conheceObra devolve a sugestão vazia")
         void semLivroIdentificado() {
-            assertEquals(SugestaoEnriquecimento.vazia(), sugerirCom("{\"sinopse\": \"Algo\", \"paginas\": 100}"));
+            assertEquals(SugestaoEnriquecimento.vazia(List.of()), sugerirCom("{\"sinopse\": \"Algo\", \"paginas\": 100}"));
         }
 
         @Test
@@ -102,7 +119,7 @@ class AgenteEnriquecedorAgenteTest {
         @DisplayName("E13 (A2): exceção do ClienteLlm não é capturada")
         void excecaoDoCliente() {
             AgenteIndisponivelException erro = new AgenteIndisponivelException("sem chave");
-            when(clienteLlm.gerarJson(anyString(), any())).thenThrow(erro);
+            when(clienteLlm.gerarJson(anyString(), any(), any())).thenThrow(erro);
             assertSame(erro, assertThrows(AgenteIndisponivelException.class, () -> agente.sugerir(livro, null)));
         }
 
@@ -111,7 +128,7 @@ class AgenteEnriquecedorAgenteTest {
         @DisplayName("A2 (derivado): outra RuntimeException do ClienteLlm também não é capturada")
         void outraExcecaoDoCliente() {
             IllegalStateException erro = new IllegalStateException("falha");
-            when(clienteLlm.gerarJson(anyString(), any())).thenThrow(erro);
+            when(clienteLlm.gerarJson(anyString(), any(), any())).thenThrow(erro);
             assertSame(erro, assertThrows(IllegalStateException.class, () -> agente.sugerir(livro, null)));
         }
     }
@@ -121,10 +138,10 @@ class AgenteEnriquecedorAgenteTest {
     class Travas {
 
         @Test
-        @DisplayName("E4 (A5, A6, A7): sinopse longa, ISBN com dígito errado e 0 páginas viram null")
+        @DisplayName("E4 (A5, A6, A7): sinopse longa, ISBN com dígito errado e páginas viram null")
         void travasInvalidas() {
-            SugestaoEnriquecimento s = sugerirCom("{\"livroIdentificado\": true, \"sinopse\": \"" + "a".repeat(1501)
-                    + "\", \"isbn\": \"9788535914848\", \"paginas\": 0}");
+            SugestaoEnriquecimento s = sugerirCom("{\"conheceObra\": true, \"sinopse\": \"" + "a".repeat(1501)
+                    + "\", \"isbn\": \"9788535914848\"}");
             assertAll(
                     () -> assertNull(s.sinopse()),
                     () -> assertNull(s.isbn()),
@@ -135,13 +152,13 @@ class AgenteEnriquecedorAgenteTest {
         @DisplayName("E5 (A5): sinopse sem espaços nas pontas")
         void sinopseComEspacos() {
             assertEquals("Texto curto.",
-                    sugerirCom("{\"livroIdentificado\": true, \"sinopse\": \"  Texto curto.  \"}").sinopse());
+                    sugerirCom("{\"conheceObra\": true, \"sinopse\": \"  Texto curto.  \"}").sinopse());
         }
 
         @Test
         @DisplayName("E5 (A5): sinopse em branco vira null")
         void sinopseEmBranco() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"sinopse\": \"   \"}").sinopse());
+            assertNull(sugerirCom("{\"conheceObra\": true, \"sinopse\": \"   \"}").sinopse());
         }
 
         @Test
@@ -150,7 +167,7 @@ class AgenteEnriquecedorAgenteTest {
         void sinopse1500() {
             String sinopse = "a".repeat(1500);
             assertEquals(sinopse,
-                    sugerirCom("{\"livroIdentificado\": true, \"sinopse\": \"" + sinopse + "\"}").sinopse());
+                    sugerirCom("{\"conheceObra\": true, \"sinopse\": \"" + sinopse + "\"}").sinopse());
         }
 
         @Test
@@ -159,60 +176,47 @@ class AgenteEnriquecedorAgenteTest {
         void sinopse1500ComEspacos() {
             String sinopse = "a".repeat(1500);
             assertEquals(sinopse,
-                    sugerirCom("{\"livroIdentificado\": true, \"sinopse\": \"  " + sinopse + "  \"}").sinopse());
+                    sugerirCom("{\"conheceObra\": true, \"sinopse\": \"  " + sinopse + "  \"}").sinopse());
         }
 
         @Test
         @Tag("derivado")
         @DisplayName("A5 (derivado): sinopse que não é texto vira null")
         void sinopseNaoTexto() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"sinopse\": 123}").sinopse());
+            assertNull(sugerirCom("{\"conheceObra\": true, \"sinopse\": 123}").sinopse());
         }
 
         @Test
         @DisplayName("E6 (A7): 10000 páginas é aceito")
         void paginas10000() {
-            assertEquals(10000, sugerirCom("{\"livroIdentificado\": true, \"paginas\": 10000}").paginas());
+            assertEquals(10000, sugerirComPaginas(10000).paginas());
         }
 
         @Test
         @DisplayName("E6 (A7): 10001 páginas vira null")
         void paginas10001() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"paginas\": 10001}").paginas());
-        }
-
-        @Test
-        @DisplayName("E6 (A7): páginas como texto vira null")
-        void paginasTexto() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"paginas\": \"152\"}").paginas());
+            assertNull(sugerirComPaginas(10001).paginas());
         }
 
         @Test
         @Tag("derivado")
         @DisplayName("A7 (derivado): 1 página (limite inferior) é aceito")
         void umaPagina() {
-            assertEquals(1, sugerirCom("{\"livroIdentificado\": true, \"paginas\": 1}").paginas());
-        }
-
-        @Test
-        @Tag("derivado")
-        @DisplayName("A7 (derivado): páginas decimal vira null")
-        void paginasDecimal() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"paginas\": 152.5}").paginas());
+            assertEquals(1, sugerirComPaginas(1).paginas());
         }
 
         @Test
         @Tag("derivado")
         @DisplayName("A7 (derivado): páginas null vira null")
         void paginasNull() {
-            assertNull(sugerirCom("{\"livroIdentificado\": true, \"paginas\": null}").paginas());
+            assertNull(sugerirComPaginas(null).paginas());
         }
 
         @Test
         @DisplayName("E7 (A8, A9): tags repetidas sem acento/caixa e em branco são descartadas; no máximo 5")
         void tags() {
             SugestaoEnriquecimento s = sugerirCom("""
-                    {"livroIdentificado": true, "tags": ["Ficção", "ficcao", " ", "drama", "romance", "clássico",
+                    {"conheceObra": true, "tags": ["Ficção", "ficcao", " ", "drama", "romance", "clássico",
                      "russo", "filosofia"]}""");
             assertEquals(List.of("Ficção", "drama", "romance", "clássico", "russo"), s.tags());
         }
@@ -221,7 +225,7 @@ class AgenteEnriquecedorAgenteTest {
         @DisplayName("E8 (A8): autores com espaços normalizados, sem repetidos e sem itens que não são texto")
         void autores() {
             SugestaoEnriquecimento s = sugerirCom(
-                    "{\"livroIdentificado\": true, \"autores\": [\"  Ana   Maria \", \"ANA MARIA\", 42]}");
+                    "{\"conheceObra\": true, \"autores\": [\"  Ana   Maria \", \"ANA MARIA\", 42]}");
             assertEquals(List.of("Ana Maria"), s.autores());
         }
 
@@ -232,7 +236,7 @@ class AgenteEnriquecedorAgenteTest {
             String t40 = "b".repeat(40);
             String t41 = "c".repeat(41);
             SugestaoEnriquecimento s = sugerirCom(
-                    "{\"livroIdentificado\": true, \"tags\": [\"" + t40 + "\", \"" + t41 + "\"]}");
+                    "{\"conheceObra\": true, \"tags\": [\"" + t40 + "\", \"" + t41 + "\"]}");
             assertEquals(List.of(t40), s.tags());
         }
 
@@ -243,7 +247,7 @@ class AgenteEnriquecedorAgenteTest {
             String a120 = "b".repeat(120);
             String a121 = "c".repeat(121);
             SugestaoEnriquecimento s = sugerirCom(
-                    "{\"livroIdentificado\": true, \"autores\": [\"" + a120 + "\", \"" + a121 + "\"]}");
+                    "{\"conheceObra\": true, \"autores\": [\"" + a120 + "\", \"" + a121 + "\"]}");
             assertEquals(List.of(a120), s.autores());
         }
 
@@ -251,14 +255,14 @@ class AgenteEnriquecedorAgenteTest {
         @Tag("derivado")
         @DisplayName("A8 (derivado): tag em branco e tag que não é texto são descartadas")
         void tagsInvalidas() {
-            SugestaoEnriquecimento s = sugerirCom("{\"livroIdentificado\": true, \"tags\": [\"\", true, \"drama\"]}");
+            SugestaoEnriquecimento s = sugerirCom("{\"conheceObra\": true, \"tags\": [\"\", true, \"drama\"]}");
             assertEquals(List.of("drama"), s.tags());
         }
 
         @Test
         @DisplayName("E9 (A9): sem autores e tags, as listas são vazias")
         void semListas() {
-            SugestaoEnriquecimento s = sugerirCom("{\"livroIdentificado\": true}");
+            SugestaoEnriquecimento s = sugerirCom("{\"conheceObra\": true}");
             assertAll(
                     () -> assertThat(s.autores()).isNotNull().isEmpty(),
                     () -> assertThat(s.tags()).isNotNull().isEmpty());
@@ -268,7 +272,7 @@ class AgenteEnriquecedorAgenteTest {
         @Tag("derivado")
         @DisplayName("A9 (derivado): autores e tags null viram listas vazias")
         void listasNull() {
-            SugestaoEnriquecimento s = sugerirCom("{\"livroIdentificado\": true, \"autores\": null, \"tags\": null}");
+            SugestaoEnriquecimento s = sugerirCom("{\"conheceObra\": true, \"autores\": null, \"tags\": null}");
             assertAll(
                     () -> assertThat(s.autores()).isNotNull().isEmpty(),
                     () -> assertThat(s.tags()).isNotNull().isEmpty());
@@ -279,7 +283,7 @@ class AgenteEnriquecedorAgenteTest {
         @DisplayName("A9 (derivado): 6 autores válidos ficam os 5 primeiros")
         void seisAutores() {
             SugestaoEnriquecimento s = sugerirCom(
-                    "{\"livroIdentificado\": true, \"autores\": [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\"]}");
+                    "{\"conheceObra\": true, \"autores\": [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\"]}");
             assertEquals(List.of("A", "B", "C", "D", "E"), s.autores());
         }
     }
@@ -290,7 +294,7 @@ class AgenteEnriquecedorAgenteTest {
 
         @BeforeEach
         void naoIdentificado() {
-            llmDevolve("{\"livroIdentificado\": false}");
+            llmDevolve("{\"conheceObra\": false}");
         }
 
         @Test

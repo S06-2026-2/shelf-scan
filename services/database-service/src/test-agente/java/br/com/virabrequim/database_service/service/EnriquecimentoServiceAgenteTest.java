@@ -2,6 +2,7 @@ package br.com.virabrequim.database_service.service;
 
 import br.com.virabrequim.database_service.agente.AgenteEnriquecedor;
 import br.com.virabrequim.database_service.agente.AgenteIndisponivelException;
+import br.com.virabrequim.database_service.agente.Fonte;
 import br.com.virabrequim.database_service.agente.SugestaoEnriquecimento;
 import br.com.virabrequim.database_service.domain.StatusLeitura;
 import br.com.virabrequim.database_service.domain.node.AutorNode;
@@ -43,8 +44,8 @@ import static org.mockito.Mockito.when;
 class EnriquecimentoServiceAgenteTest {
 
     private static final LocalDate HOJE = LocalDate.of(2026, 3, 10);
-    private static final SugestaoEnriquecimento COMPLETA = new SugestaoEnriquecimento(true, "Resumo",
-            "9788573261585", 152, List.of("Fiódor Dostoiévski"), List.of("romance"));
+    private static final SugestaoEnriquecimento COMPLETA = new SugestaoEnriquecimento(true, false, "Resumo",
+            "9788573261585", 152, null, List.of("Fiódor Dostoiévski"), Fonte.CATALOGO, List.of("romance"), List.of());
 
     private LivroService livroService;
     private AgenteEnriquecedor agente;
@@ -107,7 +108,7 @@ class EnriquecimentoServiceAgenteTest {
                     () -> assertNull(dados.volume()),
                     () -> assertSame(atualizado, r.livro()),
                     () -> assertEquals(List.of("sinopse", "isbn", "paginas", "autores", "tags"), r.camposPreenchidos()),
-                    () -> assertTrue(r.livroIdentificado()),
+                    () -> assertTrue(r.encontradoNoCatalogo()),
                     () -> assertEquals("gemini-teste", r.modelo()));
         }
 
@@ -135,7 +136,8 @@ class EnriquecimentoServiceAgenteTest {
         @Tag("derivado")
         @DisplayName("N3 (derivado): campo sem valor na sugestão não entra mesmo com o livro vazio")
         void sugestaoParcial() {
-            agenteSugere(new SugestaoEnriquecimento(true, null, null, null, List.of("Fiódor Dostoiévski"), List.of()));
+            agenteSugere(new SugestaoEnriquecimento(true, false, null, null, null, null,
+                    List.of("Fiódor Dostoiévski"), Fonte.CATALOGO, List.of(), List.of()));
 
             EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
 
@@ -187,21 +189,21 @@ class EnriquecimentoServiceAgenteTest {
                     () -> verify(livroService, never()).atualizar(any(), any(), any()),
                     () -> assertSame(livro5, r.livro()),
                     () -> assertThat(r.camposPreenchidos()).isEmpty(),
-                    () -> assertTrue(r.livroIdentificado()),
+                    () -> assertTrue(r.encontradoNoCatalogo()),
                     () -> assertEquals("gemini-teste", r.modelo()));
         }
 
         @Test
-        @DisplayName("E4 (N5): sugestão vazia não chama atualizar e livroIdentificado = false")
+        @DisplayName("E4 (N5): sugestão vazia não chama atualizar e encontradoNoCatalogo = false")
         void sugestaoVazia() {
-            agenteSugere(SugestaoEnriquecimento.vazia());
+            agenteSugere(SugestaoEnriquecimento.vazia(List.of()));
 
             EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
 
             assertAll(
                     () -> verify(livroService, never()).atualizar(any(), any(), any()),
                     () -> assertThat(r.camposPreenchidos()).isEmpty(),
-                    () -> assertFalse(r.livroIdentificado()));
+                    () -> assertFalse(r.encontradoNoCatalogo()));
         }
     }
 
@@ -304,7 +306,7 @@ class EnriquecimentoServiceAgenteTest {
         @Test
         @DisplayName("E9 (N2): o agente recebe o livro 5 e o texto bruto")
         void repassaTextoBruto() {
-            agenteSugere(SugestaoEnriquecimento.vazia());
+            agenteSugere(SugestaoEnriquecimento.vazia(List.of()));
 
             service.enriquecer(1L, 5L, "MEMORIAS DO SUBSOLO");
 
@@ -315,7 +317,7 @@ class EnriquecimentoServiceAgenteTest {
         @Tag("derivado")
         @DisplayName("N2 (derivado): texto bruto null é repassado como null")
         void textoBrutoNull() {
-            agenteSugere(SugestaoEnriquecimento.vazia());
+            agenteSugere(SugestaoEnriquecimento.vazia(List.of()));
 
             service.enriquecer(1L, 5L, null);
 

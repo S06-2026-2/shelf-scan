@@ -1,14 +1,17 @@
 package br.com.virabrequim.database_service.service;
 
 import br.com.virabrequim.database_service.agente.AgenteEnriquecedor;
+import br.com.virabrequim.database_service.agente.Fonte;
 import br.com.virabrequim.database_service.agente.SugestaoEnriquecimento;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.relationship.EmprestimoRelationship;
 import br.com.virabrequim.database_service.dto.AtualizacaoLivro;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 // Aplica no livro o que o agente enriquecedor sugeriu. Regra: o agente só PREENCHE campos vazios, nunca
 // sobrescreve o que o usuário já cadastrou. A gravação reaproveita o PATCH do LivroService (mesmas validações,
@@ -32,40 +35,50 @@ public class EnriquecimentoService {
         LivroNode livro = livroService.buscarDoDono(usuarioId, livroId);
         SugestaoEnriquecimento sugestao = agente.sugerir(livro, textoBruto);
 
-        List<String> campos = new ArrayList<>();
+        Map<String, Fonte> campos = new LinkedHashMap<>();
         String sinopse = null;
         String isbn = null;
         Integer paginas = null;
+        String editora = null;
         List<String> autores = null;
         List<String> tags = null;
 
         if (livro.getSinopse() == null && sugestao.sinopse() != null) {
             sinopse = sugestao.sinopse();
-            campos.add("sinopse");
+            campos.put("sinopse", Fonte.IA);
         }
         if (livro.getIsbn() == null && sugestao.isbn() != null) {
             isbn = sugestao.isbn();
-            campos.add("isbn");
+            campos.put("isbn", Fonte.CATALOGO);
         }
         if (livro.getPaginas() == null && sugestao.paginas() != null && cabeNaLeitura(livro, sugestao.paginas())) {
             paginas = sugestao.paginas();
-            campos.add("paginas");
+            campos.put("paginas", Fonte.CATALOGO);
+        }
+        if (livro.getEditora() == null && sugestao.editora() != null) {
+            editora = sugestao.editora();
+            campos.put("editora", Fonte.CATALOGO);
         }
         if (livro.getAutores().isEmpty() && !sugestao.autores().isEmpty()) {
             autores = sugestao.autores();
-            campos.add("autores");
+            campos.put("autores", sugestao.fonteAutores());
         }
         if (livro.getTags().isEmpty() && !sugestao.tags().isEmpty()) {
             tags = sugestao.tags();
-            campos.add("tags");
+            campos.put("tags", Fonte.IA);
         }
 
         if (campos.isEmpty()) {
-            return new Resultado(livro, campos, sugestao.livroIdentificado(), agente.modelo());
+            return resultado(livro, campos, sugestao);
         }
         LivroNode atualizado = livroService.atualizar(usuarioId, livroId,
-                new AtualizacaoLivro(null, autores, tags, isbn, null, paginas, sinopse, null));
-        return new Resultado(atualizado, List.copyOf(campos), true, agente.modelo());
+                new AtualizacaoLivro(null, autores, tags, isbn, null, paginas, sinopse, editora));
+        return resultado(atualizado, campos, sugestao);
+    }
+
+    private Resultado resultado(LivroNode livro, Map<String, Fonte> campos, SugestaoEnriquecimento sugestao) {
+        return new Resultado(livro, List.copyOf(campos.keySet()), Collections.unmodifiableMap(campos),
+                sugestao.encontradoNoCatalogo(), sugestao.edicaoDigital(), sugestao.consultas(), agente.modelo());
     }
 
     // Um total de páginas menor que a página em que alguém está lendo seria conflito (409) no LivroNode:
@@ -79,7 +92,8 @@ public class EnriquecimentoService {
         return cabeNoDono && cabeNoEmprestimo;
     }
 
-    public record Resultado(LivroNode livro, List<String> camposPreenchidos, boolean livroIdentificado,
-            String modelo) {
+    // fontes: de onde veio cada campo preenchido. consultas: o que o agente pesquisou nos catálogos
+    public record Resultado(LivroNode livro, List<String> camposPreenchidos, Map<String, Fonte> fontes,
+            boolean encontradoNoCatalogo, boolean edicaoDigital, List<String> consultas, String modelo) {
     }
 }
