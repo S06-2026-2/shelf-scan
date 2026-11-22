@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
@@ -66,6 +67,11 @@ class EnriquecimentoServiceAgenteTest {
         when(livroService.buscarDoDono(1L, 5L)).thenReturn(livro5);
         when(livroService.atualizar(anyLong(), anyLong(), any())).thenReturn(atualizado);
         when(agente.modelo()).thenReturn("gemini-teste");
+    }
+
+    private static SugestaoEnriquecimento comEditora(String editora) {
+        return new SugestaoEnriquecimento(true, false, "Resumo", "9788573261585", 152, editora,
+                List.of("Fiódor Dostoiévski"), Fonte.CATALOGO, List.of("romance"), List.of());
     }
 
     private void agenteSugere(SugestaoEnriquecimento sugestao) {
@@ -167,6 +173,70 @@ class EnriquecimentoServiceAgenteTest {
                     () -> assertNull(dados.tags()),
                     () -> assertEquals(List.of("sinopse", "paginas", "autores"), r.camposPreenchidos()));
         }
+
+        @Test
+        @DisplayName("E10 (N3, N8): livro sem editora recebe a editora sugerida, com fonte CATALOGO")
+        void editoraSugerida() {
+            agenteSugere(comEditora("Editora 34"));
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertAll(
+                    () -> assertEquals("Editora 34", dadosEnviados().editora()),
+                    () -> assertEquals(Fonte.CATALOGO, r.fontes().get("editora")));
+        }
+
+        @Test
+        @DisplayName("E10 (N3): editora já cadastrada não é alterada")
+        void editoraJaCadastrada() {
+            livro5.setEditora("Minha editora");
+            agenteSugere(comEditora("Editora 34"));
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertAll(
+                    () -> assertNull(dadosEnviados().editora()),
+                    () -> assertThat(r.camposPreenchidos()).doesNotContain("editora"));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N7 (derivado): com os seis campos, a ordem é sinopse, isbn, paginas, editora, autores, tags")
+        void ordemDosSeisCampos() {
+            agenteSugere(comEditora("Editora 34"));
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertEquals(List.of("sinopse", "isbn", "paginas", "editora", "autores", "tags"), r.camposPreenchidos());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N8 (derivado): fontes de cada campo preenchido na sugestão completa")
+        void fontesDaSugestaoCompleta() {
+            agenteSugere(COMPLETA);
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertEquals(Map.of("sinopse", Fonte.IA, "isbn", Fonte.CATALOGO, "paginas", Fonte.CATALOGO,
+                    "autores", Fonte.CATALOGO, "tags", Fonte.IA), r.fontes());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N8 (derivado): autores com fonteAutores IA, edicaoDigital e consultas vêm da sugestão")
+        void fonteAutoresIaEDadosDaSugestao() {
+            agenteSugere(new SugestaoEnriquecimento(false, true, null, null, null, null, List.of("Ana Maria"),
+                    Fonte.IA, List.of(), List.of("consulta 1", "consulta 2")));
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertAll(
+                    () -> assertEquals(Map.of("autores", Fonte.IA), r.fontes()),
+                    () -> assertTrue(r.edicaoDigital()),
+                    () -> assertFalse(r.encontradoNoCatalogo()),
+                    () -> assertEquals(List.of("consulta 1", "consulta 2"), r.consultas()));
+        }
     }
 
     @Nested
@@ -204,6 +274,20 @@ class EnriquecimentoServiceAgenteTest {
                     () -> verify(livroService, never()).atualizar(any(), any(), any()),
                     () -> assertThat(r.camposPreenchidos()).isEmpty(),
                     () -> assertFalse(r.encontradoNoCatalogo()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("N5 (derivado): sem campos preenchidos, o resultado tem o livro buscado, fontes vazias e o modelo")
+        void semCamposResultado() {
+            agenteSugere(SugestaoEnriquecimento.vazia(List.of()));
+
+            EnriquecimentoService.Resultado r = service.enriquecer(1L, 5L, null);
+
+            assertAll(
+                    () -> assertSame(livro5, r.livro()),
+                    () -> assertThat(r.fontes()).isEmpty(),
+                    () -> assertEquals("gemini-teste", r.modelo()));
         }
     }
 
