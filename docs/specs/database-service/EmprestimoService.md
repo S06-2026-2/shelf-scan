@@ -13,7 +13,7 @@ virtual "Emprestados comigo" e para o notification-service (avisos de vencimento
 
 O empréstimo é o relacionamento `LENT_TO` (`EmprestimoRelationship`), guardado na lista `emprestimos` do livro. O
 dono é derivado do caminho e não muda durante o empréstimo: o `STORED_IN` continua apontando para a estante do dono.
-Vale para qualquer par de usuários: biblioteca → cliente, ou amigo → amigo.
+Só se empresta entre pessoas com vínculo: biblioteca → membro (cliente) dela, ou amigo → amigo.
 
 Um livro **é do dono** quando `UsuarioRepository.findDonoDoLivro(livroId)` retorna um usuário com o mesmo `id`.
 
@@ -26,7 +26,7 @@ aqui só se verifica que o service as usa.
 | Assinatura | Para quê | Regras |
 | --- | --- | --- |
 | `EmprestimoService(UsuarioRepository usuarioRepository, LivroRepository livroRepository, Calendario calendario)` | Injeção pelo construtor | — |
-| `EmprestimoRelationship emprestar(Long donoId, Long livroId, Long mutuarioId, LocalDate dataPrevistaDevolucao)` | Empresta a partir de hoje | M1–M5 |
+| `EmprestimoRelationship emprestar(Long donoId, Long livroId, Long mutuarioId, LocalDate dataPrevistaDevolucao)` | Empresta a partir de hoje | M1–M5, M11, M14 |
 | `EmprestimoRelationship devolver(Long donoId, Long livroId, LocalDate dataDevolucao)` | Registra a devolução | M1, M6 |
 | `List<EmprestimoRelationship> historico(Long donoId, Long livroId)` | Histórico do livro, mais recente primeiro | M1, M10 |
 | `List<LivroNode> listarEmprestadosPara(Long usuarioId)` | Estante virtual "Emprestados comigo" | M7 |
@@ -42,6 +42,7 @@ Colaboradores usados (mockados nos testes):
 | --- | --- |
 | `UsuarioRepository.findById(Long id)` | `Optional<UsuarioNode>` |
 | `UsuarioRepository.findDonoDoLivro(Long livroId)` | `Optional<UsuarioNode>` |
+| `UsuarioRepository.podeEmprestarPara(Long donoId, Long mutuarioId)` | `boolean`: são amigos, ou o mutuário é membro da biblioteca dona |
 | `LivroRepository.findById(Long id)` | `Optional<LivroNode>` |
 | `LivroRepository.save(LivroNode livro)` | o livro salvo |
 | `LivroRepository.findAllComEmprestimoAtivo()` | `List<LivroNode>` |
@@ -71,6 +72,9 @@ O empréstimo é criado pelo construtor do sistema do `EmprestimoRelationship`, 
   dele (o mais recente pela regra de ordem da M10): status, página atual e data de conclusão são copiados
   (`novo.continuarLeitura(anterior)`). Empréstimos de outras pessoas não contam. Se o último dele não tiver leitura
   (status `null`, dado antigo do banco), vale a M5. O empréstimo anterior não muda.
+- **M14.** Só se empresta para quem tem vínculo com o dono. Se `podeEmprestarPara(donoId, mutuarioId)` for `false`, lança
+  `IllegalStateException` e nada é salvo. Essa verificação vem depois da M1 e da M2 e antes da M3. O vínculo só é
+  exigido ao **emprestar**: devolver, histórico e listagens não o consultam.
 
 **Devolver**
 
@@ -111,7 +115,8 @@ O empréstimo é criado pelo construtor do sistema do `EmprestimoRelationship`, 
 
 ## Exemplos
 
-**Hoje = 10/03/2026.** Ana (id 1) é dona do livro 5. Bruno (id 2) e Carla (id 3) são outros usuários.
+**Hoje = 10/03/2026.** Ana (id 1) é dona do livro 5. Bruno (id 2) e Carla (id 3) são outros usuários. Salvo indicação,
+`podeEmprestarPara(1L, 2L)` e `podeEmprestarPara(1L, 3L)` são `true`.
 
 **Emprestar**
 
@@ -133,6 +138,10 @@ O empréstimo é criado pelo construtor do sistema do `EmprestimoRelationship`, 
   começa `LIDO`, com a mesma data de conclusão do anterior dela.
 - **E22 (M11, M5).** Dado o livro 5 com 1 empréstimo devolvido de Bruno, Quando chamo `emprestar(1L, 5L, 3L, ...)`
   (Carla nunca pegou o livro), Então o empréstimo de Carla começa `QUERO_LER` na página 0.
+- **E25 (M14).** Dado `podeEmprestarPara(1L, 2L)` = `false`, Quando chamo `emprestar(1L, 5L, 2L, 24/03/2026)`, Então
+  `IllegalStateException` e `save` não é chamado.
+- **E26 (M14).** Dado `podeEmprestarPara(1L, 2L)` = `false` e o livro 5 com empréstimo ativo para Bruno, Quando chamo
+  `devolver(1L, 5L, null)`, Então o empréstimo é devolvido normalmente.
 - **E7 (M4).** Quando chamo `emprestar(1L, 5L, 2L, null)` ou `emprestar(1L, 5L, 2L, 10/03/2026)`, Então
   `IllegalArgumentException` e `save` não é chamado.
 
@@ -183,14 +192,15 @@ O empréstimo é criado pelo construtor do sistema do `EmprestimoRelationship`, 
 - **A mesma pessoa pegando o livro de novo** continua a leitura de onde parou (E20, E21); outra pessoa começa do zero (E22).
 - **Quem pegou emprestado não registra a devolução**, só o dono (E12).
 - **Data prevista igual a hoje** é inválida, porque o prazo mínimo é de 1 dia (E7).
-- **Livro de biblioteca e livro de amigo** seguem as mesmas regras.
+- **Livro de biblioteca e livro de amigo** seguem as mesmas regras; só o vínculo exigido é diferente (M14).
+- **Amizade desfeita ou saída da biblioteca com empréstimo ativo**: a devolução continua possível (E26).
 - **Histórico não depende de hoje**: `historico` não precisa consultar o `Calendario`.
 
 ## Fora do escopo
 
 - Empréstimo agendado (data de empréstimo no futuro). Pela API o empréstimo sempre começa hoje.
 - Renovar o prazo de um empréstimo.
-- Emprestar só para amigos/clientes (depende das relações `AMIGO`/`SEGUE`, que ainda não existem).
+- Criar e desfazer os vínculos (ver `AmizadeService.md` e `MembroService.md`).
 - Enviar as notificações (é do notification-service; aqui só se listam os livros).
 - As consultas Cypher dos repositórios (testadas em teste de integração, não aqui).
 - Autenticação (por enquanto `donoId`/`usuarioId` vêm da rota).

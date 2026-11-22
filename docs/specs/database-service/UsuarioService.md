@@ -26,6 +26,7 @@ Nos testes, os repositórios são mocks (Mockito). Salvar o usuário salva junto
 | `UsuarioNode criar(String nome, String email)` | Cria um usuário comum | U1–U3 |
 | `UsuarioNode buscar(Long id)` | Busca qualquer usuário (comum ou biblioteca) | U4 |
 | `UsuarioNode buscarUsuarioComum(Long id)` | Busca só usuário comum (CRUD) | U4, U5 |
+| `List<UsuarioNode> listarUsuariosComuns()` | Todos os usuários comuns | U11 |
 | `UsuarioNode atualizar(Long id, String nome, String email)` | Atualização parcial (PATCH) | U5–U8 |
 | `void apagar(Long id)` | Apaga o usuário comum e o que é dele | U5, U9 |
 | `UsuarioNode buscarDonoDoLivro(Long livroId)` | Dono de um livro (para as respostas da API) | U10 |
@@ -37,6 +38,7 @@ Colaboradores usados (mockados nos testes):
 | `UsuarioRepository.existsByEmail(String email)` | `boolean` |
 | `UsuarioRepository.save(S usuario)` | o usuário salvo |
 | `UsuarioRepository.findById(Long id)` | `Optional<UsuarioNode>` |
+| `UsuarioRepository.findAllUsuariosComuns()` | `List<UsuarioNode>` (sem bibliotecas, em qualquer ordem) |
 | `UsuarioRepository.apagarComEstantesELivros(Long usuarioId)` | `void` |
 | `UsuarioRepository.findDonoDoLivro(Long livroId)` | `Optional<UsuarioNode>` |
 
@@ -71,6 +73,8 @@ Entidades:
   nelas, menos os livros com empréstimo ativo (essa parte é feita pela query do repositório).
 - **U10.** `buscarDonoDoLivro(livroId)` retorna o usuário de `findDonoDoLivro(livroId)` e não salva nada. Se vier
   vazio, lança `NoSuchElementException`.
+- **U11.** `listarUsuariosComuns()` retorna os usuários de `findAllUsuariosComuns()` em ordem alfabética de nome, sem
+  diferenciar maiúsculas e acentos. Sem usuários, retorna lista vazia. Não salva nada.
 
 ## Exemplos
 
@@ -111,6 +115,8 @@ Entidades:
   `save` não é chamado.
 - **E19 (U10).** Dado `findDonoDoLivro(99L)` = vazio, Quando chamo `buscarDonoDoLivro(99L)`, Então
   `NoSuchElementException`.
+- **E20 (U11).** Dado `findAllUsuariosComuns()` = [Bruno, ana, Ágata], Quando chamo `listarUsuariosComuns()`, Então
+  retorna [Ágata, ana, Bruno]. Com lista vazia, retorna lista vazia.
 
 ## Casos de borda
 
@@ -127,5 +133,5 @@ Entidades:
 - O que a query `apagarComEstantesELivros` apaga no banco (testado só com banco real). Livro emprestado de usuário
   apagado fica sem dono, e empréstimo ativo **para** o usuário apagado some (pendências de domínio).
 - Condição de corrida no email: coberta pela constraint de unicidade do Neo4j.
-- Relações entre usuários (`AMIGO`, `SEGUE`).
+- Relações entre usuários (ver `AmizadeService.md` e `MembroService.md`).
 - Autenticação e senha.
