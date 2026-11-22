@@ -92,6 +92,23 @@ class IsbnAgenteTest {
     }
 
     @Test
+    @DisplayName("E10 (I5): como13 converte ISBN-10, normaliza ISBN-13 e devolve null para inválido ou null")
+    void como13() {
+        assertAll(
+                () -> assertEquals("9788535914849", Isbn.como13("85-359-1484-6")),
+                () -> assertEquals("9788535914849", Isbn.como13("978-85-359-1484-9")),
+                () -> assertNull(Isbn.como13("8535914847")),
+                () -> assertNull(Isbn.como13(null)));
+    }
+
+    @Test
+    @Tag("derivado")
+    @DisplayName("I5 (derivado): como13 de ISBN-10 com X recalcula o dígito verificador do ISBN-13")
+    void como13ComX() {
+        assertEquals("9780804429573", Isbn.como13("0-8044-2957-x"));
+    }
+
+    @Test
     @Tag("derivado")
     @DisplayName("I4 (derivado): só hífens e espaços (vazio depois de normalizar) retorna null")
     void soSeparadores() {
