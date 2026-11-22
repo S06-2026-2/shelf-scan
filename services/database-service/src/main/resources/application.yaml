@@ -32,3 +32,9 @@ agente:
     modelo: ${GEMINI_MODELO:gemini-3.5-flash-lite}
     url: https://generativelanguage.googleapis.com/v1beta
     tempo-limite: 20s
+  # Catálogos que o agente consulta. Sem GOOGLE_BOOKS_API_KEY ele não busca por título, só consulta ISBN na BrasilAPI.
+  catalogo:
+    google-books-url: https://www.googleapis.com/books/v1
+    google-books-api-key: ${GOOGLE_BOOKS_API_KEY:}
+    brasil-api-url: https://brasilapi.com.br/api
+    tempo-limite: 8s

@@ -1,6 +1,7 @@
 package br.com.virabrequim.database_service.agente;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
@@ -28,5 +29,14 @@ class IsbnTest {
     @NullSource
     void invalido(String entrada) {
         assertThat(Isbn.normalizado(entrada)).isNull();
+    }
+
+    @Test
+    @DisplayName("ISBN-10 vira o ISBN-13 equivalente; inválido vira null")
+    void como13() {
+        assertThat(Isbn.como13("85-359-1484-6")).isEqualTo("9788535914849");
+        assertThat(Isbn.como13("978-85-359-1484-9")).isEqualTo("9788535914849");
+        assertThat(Isbn.como13("8535914847")).isNull();
+        assertThat(Isbn.como13(null)).isNull();
     }
 }

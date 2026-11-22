@@ -180,6 +180,6 @@ Nos exemplos, **hoje = 10/03/2026**.
 - Quem é o dono do livro (derivado pelo caminho `Livro → Estante ← Usuario`, consultado no repositório).
 - Regra de "um empréstimo ativo por livro" na hora de emprestar: é do `EmprestimoService`. Aqui só se trata o dado
   inconsistente (N3).
-- Validação de ISBN e volume.
+- Validação de ISBN, volume e editora (texto livre, pode ser `null`).
 - Ordem da lista de empréstimos.
 - Serialização para JSON / DTOs da API.

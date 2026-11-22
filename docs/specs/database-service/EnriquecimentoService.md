@@ -10,7 +10,7 @@ Regra principal: **o agente só preenche campos vazios**, nunca sobrescreve o qu
 A gravação reaproveita o PATCH do livro (`LivroService.atualizar`), que já aplica as validações do `LivroNode` e o
 *find-or-create* de autores e tags. Não há transação aberta durante a chamada ao LLM.
 
-Campo **vazio** no livro: `sinopse`, `isbn` ou `paginas` = `null`; `autores` ou `tags` = lista vazia.
+Campo **vazio** no livro: `sinopse`, `isbn`, `paginas` ou `editora` = `null`; `autores` ou `tags` = lista vazia.
 
 Nos testes, `LivroService` e `AgenteEnriquecedor` são mocks (Mockito).
 
@@ -20,7 +20,7 @@ Nos testes, `LivroService` e `AgenteEnriquecedor` são mocks (Mockito).
 | --- | --- | --- |
 | `EnriquecimentoService(LivroService livroService, AgenteEnriquecedor agente)` | Injeção pelo construtor | — |
 | `Resultado enriquecer(Long usuarioId, Long livroId, String textoBruto)` | Enriquece o livro do usuário | N1–N7 |
-| `record Resultado(LivroNode livro, List<String> camposPreenchidos, boolean livroIdentificado, String modelo)` | Retorno | N5, N6 |
+| `record Resultado(LivroNode livro, List<String> camposPreenchidos, Map<String, Fonte> fontes, boolean encontradoNoCatalogo, boolean edicaoDigital, List<String> consultas, String modelo)` | Retorno | N5–N8 |
 
 Colaboradores usados (mockados nos testes):
 
@@ -32,7 +32,7 @@ Colaboradores usados (mockados nos testes):
 | `AgenteEnriquecedor.modelo()` | nome do modelo |
 
 `record AtualizacaoLivro(String titulo, List<String> autores, List<String> tags, String isbn, String volume,
-Integer paginas, String sinopse)`: campo `null` = não mexer.
+Integer paginas, String sinopse, String editora)`: campo `null` = não mexer.
 
 ## Regras
 
@@ -45,32 +45,35 @@ Integer paginas, String sinopse)`: campo `null` = não mexer.
 - **N4.** O total de páginas sugerido é descartado se for **menor** que a página atual do dono (`livro.getPaginaAtual()`)
   ou que a página atual do empréstimo ativo. Igual é aceito. Página atual `null` não impede.
 - **N5.** Se nenhum campo entrar, `atualizar` **não é chamado** e o resultado tem o livro do N1, `camposPreenchidos`
-  vazio, `livroIdentificado` igual ao da sugestão e o `modelo()` do agente.
+  e `fontes` vazios e o `modelo()` do agente.
 - **N6.** Se algum campo entrar, chama `atualizar(usuarioId, livroId, dados)` **uma vez**, com os campos que entraram
   e `null` em todos os outros (`titulo` e `volume` sempre `null`). O resultado tem o livro devolvido por `atualizar`,
-  `livroIdentificado` = `true` e o `modelo()` do agente.
-- **N7.** `camposPreenchidos` lista os campos que entraram, nesta ordem: "sinopse", "isbn", "paginas", "autores",
-  "tags".
+  e o `modelo()` do agente.
+- **N7.** `camposPreenchidos` lista os campos que entraram, nesta ordem: "sinopse", "isbn", "paginas", "editora",
+  "autores", "tags".
+- **N8.** `fontes` tem uma entrada por campo preenchido: `CATALOGO` para "isbn", "paginas" e "editora"; `IA` para "sinopse" e
+  "tags"; e a `fonteAutores` da sugestão para "autores". `encontradoNoCatalogo`, `edicaoDigital` e `consultas` são os
+  da sugestão.
 
 ## Exemplos
 
-Usuário Ana (id 1), livro 5 "Memórias do Subsolo". Sugestão completa dos exemplos: `livroIdentificado` = `true`,
-sinopse "Resumo", ISBN "9788573261585", 152 páginas, autores ["Fiódor Dostoiévski"], tags ["romance"].
+Usuário Ana (id 1), livro 5 "Memórias do Subsolo". Sugestão completa dos exemplos: `encontradoNoCatalogo` = `true`,
+sinopse "Resumo", ISBN "9788573261585", 152 páginas, sem editora, autores ["Fiódor Dostoiévski"] do catálogo, tags ["romance"].
 `agente.modelo()` = "gemini-teste".
 
 - **E1 (N3, N6, N7).** Dado o livro 5 só com título (sem sinopse, ISBN, páginas, autores e tags) e a sugestão completa,
   Quando chamo `enriquecer(1L, 5L, null)`, Então `atualizar(1L, 5L, dados)` é chamado com sinopse "Resumo", ISBN
   "9788573261585", páginas 152, autores ["Fiódor Dostoiévski"], tags ["romance"], título e volume `null`; e o resultado
   tem o livro devolvido por `atualizar`, campos ["sinopse", "isbn", "paginas", "autores", "tags"],
-  `livroIdentificado` = `true` e modelo "gemini-teste".
+  `encontradoNoCatalogo` = `true` e modelo "gemini-teste".
 - **E2 (N3, N6).** Dado o livro 5 com sinopse "Minha sinopse", 200 páginas e o autor "Dostoiévski" (sem ISBN e sem
   tags) e a sugestão completa, Quando enriqueço, Então `atualizar` recebe só ISBN e tags (sinopse, páginas e autores
   `null`) e os campos são ["isbn", "tags"].
 - **E3 (N5).** Dado o livro 5 com todos os campos preenchidos e a sugestão completa, Quando enriqueço, Então
-  `atualizar` não é chamado e o resultado tem o livro 5, campos vazios, `livroIdentificado` = `true` e modelo
+  `atualizar` não é chamado e o resultado tem o livro 5, campos vazios, `encontradoNoCatalogo` = `true` e modelo
   "gemini-teste".
-- **E4 (N5).** Dado o livro 5 só com título e a sugestão `SugestaoEnriquecimento.vazia()`, Quando enriqueço, Então
-  `atualizar` não é chamado e o resultado tem campos vazios e `livroIdentificado` = `false`.
+- **E4 (N5).** Dado o livro 5 só com título e a sugestão `SugestaoEnriquecimento.vazia(List.of())`, Quando enriqueço, Então
+  `atualizar` não é chamado e o resultado tem campos vazios e `encontradoNoCatalogo` = `false`.
 - **E5 (N4).** Dado o livro 5 sem total de páginas, com a leitura do dono `LENDO` na página 180, e a sugestão de 152
   páginas, Quando enriqueço, Então "paginas" não está nos campos e `atualizar` recebe `paginas` = `null`.
 - **E6 (N4).** Dado o livro 5 sem total de páginas e com empréstimo ativo cuja página atual é 152, e a sugestão de 152
@@ -81,6 +84,8 @@ sinopse "Resumo", ISBN "9788573261585", 152 páginas, autores ["Fiódor Dostoié
   `AgenteIndisponivelException` e `atualizar` não é chamado.
 - **E9 (N2).** Quando chamo `enriquecer(1L, 5L, "MEMORIAS DO SUBSOLO")`, Então `agente.sugerir` recebe o livro 5 e
   "MEMORIAS DO SUBSOLO".
+- **E10 (N3, N8).** Dado o livro 5 sem editora e a sugestão com editora "Editora 34", Quando enriqueço, Então `atualizar`
+  recebe "Editora 34" e `fontes` tem "editora" = `CATALOGO`. Com a editora já cadastrada, ela não é alterada.
 
 ## Casos de borda
 

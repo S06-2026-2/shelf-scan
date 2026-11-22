@@ -40,6 +40,7 @@ public class LivroNode {
     // private Foto contraCapa;
     private String titulo;
     private String volume; // possivelmente float
+    private String editora;
     private Integer paginas; // null = não informado
     private ZonedDateTime dataDeAdicao;
     private String sinopse;

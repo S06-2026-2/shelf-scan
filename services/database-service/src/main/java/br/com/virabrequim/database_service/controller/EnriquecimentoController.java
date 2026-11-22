@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-// Agente enriquecedor: completa os campos vazios do livro (sinopse, ISBN, páginas, autores, tags) com IA.
+// Agente enriquecedor: completa os campos vazios do livro (sinopse, ISBN, páginas, editora, autores, tags) com IA.
 // POST porque é uma ação com efeito (chama o LLM e grava), não um PATCH com dados enviados pelo cliente.
 @RestController
 public class EnriquecimentoController {
@@ -36,7 +36,8 @@ public class EnriquecimentoController {
 
         LivroResposta livro = LivroResposta.de(resultado.livro(),
                 usuarioService.buscarDonoDoLivro(resultado.livro().getId()), calendario.diaHoje());
-        return new EnriquecimentoResposta(livro, resultado.camposPreenchidos(), resultado.livroIdentificado(),
+        return new EnriquecimentoResposta(livro, resultado.camposPreenchidos(), resultado.fontes(),
+                resultado.encontradoNoCatalogo(), resultado.edicaoDigital(), resultado.consultas(),
                 resultado.modelo(), EnriquecimentoResposta.AVISO);
     }
 }

@@ -65,7 +65,7 @@ Entidades e DTOs:
 - `AutorNode(String nome)`: nome com espaços normalizados. `TagNode(String nome)`: `getNome()` é o nome normalizado
   (sem acentos, minúsculas) e `getNomeExibicao()` a forma informada.
 - `AtualizacaoLivro(String titulo, List<String> autores, List<String> tags, String isbn, String volume,
-  Integer paginas, String sinopse)`: `record` do pacote `dto`; todos os campos podem ser `null`.
+  Integer paginas, String sinopse, String editora)`: `record` do pacote `dto`; todos os campos podem ser `null`.
 
 ## Regras
 
@@ -129,7 +129,7 @@ Entidades e DTOs:
 
 - **L12.** `atualizar` é parcial: campo `null` em `dados` = não mexer. `titulo` passa pelo `setTitulo`; `paginas` pelo
   `setPaginas` (0 remove o total; conflito com a leitura lança `IllegalStateException` e nada é salvo); `isbn`,
-  `volume` e `sinopse` vazios ou só com espaços viram `null` (apagam o campo); `autores` e `tags` **substituem a lista
+  `volume`, `editora` e `sinopse` vazios ou só com espaços viram `null` (apagam o campo); `autores` e `tags` **substituem a lista
   inteira** (lista vazia remove todos), com L11. O livro é salvo e o método retorna o livro salvo.
 
 **Órfãos**

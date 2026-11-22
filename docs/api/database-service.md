@@ -144,13 +144,21 @@ na tela "Confirmar livro" e o frontend envia o `NovoLivro` para cá.
 | --- | --- | --- | --- | --- |
 | `POST` | `/usuario/{usuarioId}/livro/{livroId}/enriquecimento` | `PedidoEnriquecimento` (opcional) | `200` `Enriquecimento` | `400` · `404` não é do usuário · `503` agente indisponível |
 
-O **agente enriquecedor** (Gemini, `gemini-3.5-flash-lite`) recebe título, autores, volume e ISBN do livro (e o texto
-bruto do OCR, se vier) e sugere **sinopse, ISBN, páginas, autores e tags**.
+O **agente enriquecedor** (Gemini, `gemini-3.5-flash-lite`) completa um livro que **já foi identificado** pelo OCR e pelo
+usuário. Ele não decide qual é o livro: consulta catálogos para achar a edição e preenche **sinopse, ISBN, páginas, editora,
+autores e tags**.
+- **Ferramentas do agente** (function calling): `buscarEdicoes` (Google Books, por título, autor e editora) e `consultarIsbn`
+  (BrasilAPI). O modelo decide quais usar, em até 6 rodadas.
+- **O modelo propõe, o código confere:** ISBN, páginas e editora só saem de um catálogo, e só se título, autor, volume e
+  editora forem confirmados por um catálogo e contraditos por nenhum. ISBN não confirmado é descartado.
+- **Fonte de cada campo** em `fontes`: `"catalogo"` (conferido) ou `"ia"` (gerado pelo modelo).
+- **Edição digital**: o agente prefere a impressa; se só achar e-book, preenche e avisa com `edicaoDigital: true` (ISBN e
+  páginas podem não ser os do exemplar físico).
 - **Só preenche campos vazios**: nunca sobrescreve o que o usuário cadastrou. Para corrigir, use o `PATCH` do livro.
-- **Travas contra alucinação**: o modelo diz se reconheceu a obra (`livroIdentificado`; se não, nada muda); ISBN só
-  com dígito verificador válido; páginas entre 1 e 10.000; sinopse até 1.500 caracteres; até 5 autores e 5 tags;
-  total de páginas menor que a página lida é descartado.
-- Configuração: variável `GEMINI_API_KEY` (sem ela a rota responde `503`) e `GEMINI_MODELO` (opcional).
+- `textoBruto` (texto do OCR) só ajuda a achar a edição. O front chama a rota **depois** de salvar o livro; ela pode levar
+  mais de 15 segundos.
+- Configuração: `GOOGLE_BOOKS_API_KEY` (opcional; sem ela não há busca por título, só consulta por ISBN),
+  `GEMINI_API_KEY` (sem ela a rota responde `503`) e `GEMINI_MODELO` (opcional).
 
 ```json
 // PedidoEnriquecimento (corpo opcional)
@@ -160,9 +168,13 @@ bruto do OCR, se vier) e sugere **sinopse, ISBN, páginas, autores e tags**.
 {
   "livro": { "id": 8, "titulo": "Memórias do Subsolo", "sinopse": "...", "isbn": "9788573261585", "...": "..." },
   "camposPreenchidos": ["sinopse", "isbn", "paginas", "tags"],
-  "livroIdentificado": true,
+  "fontes": { "sinopse": "ia", "isbn": "catalogo", "paginas": "catalogo", "tags": "ia" },
+  "encontradoNoCatalogo": true,
+  "edicaoDigital": false,
+  "consultas": ["Google Books: \"Memórias do Subsolo\", Dostoiévski, Editora 34 -> 1 edições",
+                "BrasilAPI: ISBN 9788573261585 -> Memórias do subsolo"],
   "modelo": "gemini-3.5-flash-lite",
-  "aviso": "Dados gerados por IA: confira antes de confiar. Corrija pelo PATCH do livro."
+  "aviso": "Campos com fonte \"ia\" são gerados por IA: confira antes de confiar. Corrija pelo PATCH do livro."
 }
 ```
 
@@ -253,6 +265,7 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 | `tags` | string[] | não | nomes das tags (ex.: gênero) |
 | `isbn` | string | não | |
 | `volume` | string | não | |
+| `editora` | string | não | até 120 caracteres (o OCR lê da capa) |
 | `paginas` | int | não | ≥ 0; `0` = sem total |
 | `sinopse` | string | não | |
 | `estanteId` | long | não | sem ela, vai para a estante padrão |
@@ -264,7 +277,7 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 | `titulo` | string | não pode ser só espaços |
 | `autores` | string[] | substitui a lista inteira (`[]` remove todos) |
 | `tags` | string[] | substitui a lista inteira (`[]` remove todas) |
-| `isbn`, `volume`, `sinopse` | string | `""` apaga o campo |
+| `isbn`, `volume`, `editora`, `sinopse` | string | `""` apaga o campo |
 | `paginas` | int | ≥ 0; `0` remove o total |
 
 **`Leitura`**
@@ -329,7 +342,7 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 ```json
 {
   "id": 5, "titulo": "Memórias do Subsolo", "autores": ["Fiódor Dostoiévski"], "tags": ["romance"],
-  "isbn": "9788573261974", "volume": null, "paginas": 152, "sinopse": "...",
+  "isbn": "9788573261974", "volume": null, "editora": "Editora 34", "paginas": 152, "sinopse": "...",
   "dataDeAdicao": "2026-03-10T14:30:00-03:00",
   "dono": { "id": 1, "nome": "Ana Souza" },
   "estante": { "id": 10, "nome": "Minha estante" },
