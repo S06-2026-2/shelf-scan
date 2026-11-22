@@ -611,7 +611,7 @@ class LivroServiceAgenteTest {
 
         private AtualizacaoLivro dados(String titulo, List<String> autores, List<String> tags, String isbn,
                 String volume, Integer paginas, String sinopse) {
-            return new AtualizacaoLivro(titulo, autores, tags, isbn, volume, paginas, sinopse);
+            return new AtualizacaoLivro(titulo, autores, tags, isbn, volume, paginas, sinopse, null);
         }
 
         @Test

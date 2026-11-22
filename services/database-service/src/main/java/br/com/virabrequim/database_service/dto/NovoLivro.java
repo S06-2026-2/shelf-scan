@@ -1,11 +1,13 @@
 package br.com.virabrequim.database_service.dto;
 
+import br.com.virabrequim.database_service.domain.Textos;
 import br.com.virabrequim.database_service.domain.node.AutorNode;
 import br.com.virabrequim.database_service.domain.node.LivroNode;
 import br.com.virabrequim.database_service.domain.node.TagNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +20,7 @@ public record NovoLivro(
         List<String> tags,
         String isbn,
         String volume,
+        @Size(max = 120) String editora,
         @PositiveOrZero Integer paginas,
         String sinopse,
         Long estanteId,
@@ -30,6 +33,7 @@ public record NovoLivro(
         LivroNode livro = new LivroNode(titulo);
         livro.setIsbn(isbn);
         livro.setVolume(volume);
+        livro.setEditora(Textos.opcional(editora));
         livro.setPaginas(paginas);
         livro.setSinopse(sinopse);
 

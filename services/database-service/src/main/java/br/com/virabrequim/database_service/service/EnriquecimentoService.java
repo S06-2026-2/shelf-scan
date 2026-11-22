@@ -64,7 +64,7 @@ public class EnriquecimentoService {
             return new Resultado(livro, campos, sugestao.livroIdentificado(), agente.modelo());
         }
         LivroNode atualizado = livroService.atualizar(usuarioId, livroId,
-                new AtualizacaoLivro(null, autores, tags, isbn, null, paginas, sinopse));
+                new AtualizacaoLivro(null, autores, tags, isbn, null, paginas, sinopse, null));
         return new Resultado(atualizado, List.copyOf(campos), true, agente.modelo());
     }
 

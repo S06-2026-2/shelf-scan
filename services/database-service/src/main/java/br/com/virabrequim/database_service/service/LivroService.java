@@ -108,6 +108,9 @@ public class LivroService {
         if (dados.volume() != null) {
             livro.setVolume(Textos.opcional(dados.volume()));
         }
+        if (dados.editora() != null) {
+            livro.setEditora(Textos.opcional(dados.editora()));
+        }
         if (dados.sinopse() != null) {
             livro.setSinopse(Textos.opcional(dados.sinopse()));
         }
