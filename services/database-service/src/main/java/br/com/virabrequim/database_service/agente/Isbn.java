@@ -22,6 +22,20 @@ public final class Isbn {
         return null;
     }
 
+    // ISBN-13 equivalente: o ISBN-10 ganha o prefixo 978 e um novo dígito verificador; null se for inválido
+    public static String como13(String isbn) {
+        String valido = normalizado(isbn);
+        if (valido == null || valido.length() == 13) {
+            return valido;
+        }
+        String base = "978" + valido.substring(0, 9);
+        int soma = 0;
+        for (int i = 0; i < 12; i++) {
+            soma += (base.charAt(i) - '0') * (i % 2 == 0 ? 1 : 3);
+        }
+        return base + (10 - soma % 10) % 10;
+    }
+
     // Pesos 1 e 3 alternados; a soma tem que ser múltipla de 10
     private static boolean valido13(String isbn) {
         int soma = 0;
