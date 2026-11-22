@@ -43,6 +43,10 @@ public class EmprestimoService {
         if (mutuario.getId().equals(donoId)) {
             throw new IllegalArgumentException("O dono não pode emprestar o livro para si mesmo.");
         }
+        if (!usuarioRepository.podeEmprestarPara(donoId, mutuarioId)) {
+            throw new IllegalStateException(
+                    "Só é possível emprestar para amigos ou, no caso de biblioteca, para os membros dela.");
+        }
         if (livro.isEmprestado()) {
             throw new IllegalStateException("O livro " + livroId + " já está emprestado.");
         }

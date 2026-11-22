@@ -95,6 +95,8 @@ class EmprestimoServiceAgenteTest {
         when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
         when(usuarioRepository.findDonoDoLivro(5L)).thenReturn(Optional.of(ana));
         when(usuarioRepository.findDonoDoLivro(99L)).thenReturn(Optional.empty());
+        when(usuarioRepository.podeEmprestarPara(1L, 2L)).thenReturn(true);
+        when(usuarioRepository.podeEmprestarPara(1L, 3L)).thenReturn(true);
         when(livroRepository.findById(5L)).thenReturn(Optional.of(livro5));
         when(livroRepository.findById(99L)).thenReturn(Optional.empty());
         when(livroRepository.save(any(LivroNode.class))).thenAnswer(inv -> inv.getArgument(0));

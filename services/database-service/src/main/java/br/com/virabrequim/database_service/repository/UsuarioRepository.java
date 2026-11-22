@@ -23,6 +23,12 @@ public interface UsuarioRepository extends Neo4jRepository<UsuarioNode, Long> {
         return findIdDoDonoDoLivro(livroId).flatMap(this::findById);
     }
 
+    // Quem pode pegar um livro do dono: amigo dele, ou membro (cliente) se o dono for biblioteca
+    @Query("""
+            MATCH (dono:Usuario), (mutuario:Usuario) WHERE id(dono) = $donoId AND id(mutuario) = $mutuarioId
+            RETURN EXISTS { (dono)-[:AMIGO]-(mutuario) } OR EXISTS { (mutuario)-[:MEMBRO_DE]->(dono) }""")
+    boolean podeEmprestarPara(Long donoId, Long mutuarioId);
+
     // Apaga o usuário (comum ou biblioteca), as estantes dele e os livros guardados nelas, numa query só (atômica).
     // - Livro com empréstimo ativo (LENT_TO sem dataDevolucao) NÃO é apagado: perde só a estante e fica sem dono.
     // - Autores e tags dos livros apagados que ficarem sem nenhum livro também são apagados. Cidade e estado ficam.
