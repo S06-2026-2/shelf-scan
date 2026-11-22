@@ -12,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -51,7 +52,7 @@ class UsuarioServiceAgenteTest {
     class Criar {
 
         @Test
-        @DisplayName("E1 (U1, U2, U4, U5): cria usuário com nome e email normalizados e estante padrão")
+        @DisplayName("E1 (U1, U2, U3): cria usuário com nome e email normalizados e estante padrão")
         void criaUsuario() {
             UsuarioNode retornadoPeloSave = new UsuarioNode();
             when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(false);
@@ -61,6 +62,7 @@ class UsuarioServiceAgenteTest {
 
             UsuarioNode salvo = capturarSalvo();
             assertAll(
+                    () -> assertEquals(UsuarioNode.class, salvo.getClass()),
                     () -> assertEquals("Ana Souza", salvo.getNome()),
                     () -> assertEquals("ana@email.com", salvo.getEmail()),
                     () -> assertThat(salvo.getEstantes()).hasSize(1),
@@ -78,7 +80,7 @@ class UsuarioServiceAgenteTest {
         }
 
         @ParameterizedTest(name = "E3: email [{0}] lança IllegalArgumentException")
-        @DisplayName("E3 (U2): email inválido")
+        @DisplayName("E3 (U1): email inválido")
         @CsvSource(value = {"NULL", "'  '"}, nullValues = "NULL")
         void emailInvalido(String email) {
             assertThrows(IllegalArgumentException.class, () -> service.criar("Ana", email));
@@ -86,7 +88,7 @@ class UsuarioServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E4 (U2, U3): email já existente (após normalizar) lança IllegalStateException")
+        @DisplayName("E4 (U2): email já existente (após normalizar) lança IllegalStateException")
         void emailRepetido() {
             when(usuarioRepository.existsByEmail("ana@email.com")).thenReturn(true);
             assertThrows(IllegalStateException.class, () -> service.criar("Ana", "ANA@email.com"));
@@ -99,7 +101,7 @@ class UsuarioServiceAgenteTest {
     class Buscar {
 
         @Test
-        @DisplayName("E7 (U7): buscar retorna o usuário encontrado")
+        @DisplayName("E5 (U4): buscar retorna o usuário encontrado")
         void encontrado() {
             UsuarioNode ana = new UsuarioNode();
             ana.setId(1L);
@@ -108,14 +110,14 @@ class UsuarioServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E8 (U7): usuário inexistente lança NoSuchElementException")
+        @DisplayName("E7 (U4): usuário inexistente lança NoSuchElementException")
         void inexistente() {
             when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
             assertThrows(NoSuchElementException.class, () -> service.buscar(99L));
         }
 
         @Test
-        @DisplayName("E9 (U8): buscarDonoDoLivro retorna o dono e não salva nada")
+        @DisplayName("E18 (U10): buscarDonoDoLivro retorna o dono e não salva nada")
         void donoDoLivro() {
             UsuarioNode ana = new UsuarioNode();
             ana.setId(1L);
@@ -125,7 +127,7 @@ class UsuarioServiceAgenteTest {
         }
 
         @Test
-        @DisplayName("E10 (U8): livro sem dono lança NoSuchElementException")
+        @DisplayName("E19 (U10): livro sem dono lança NoSuchElementException")
         void semDono() {
             when(usuarioRepository.findDonoDoLivro(99L)).thenReturn(Optional.empty());
             assertThrows(NoSuchElementException.class, () -> service.buscarDonoDoLivro(99L));
@@ -324,6 +326,41 @@ class UsuarioServiceAgenteTest {
             when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
             assertThrows(NoSuchElementException.class, () -> service.apagar(99L));
             verify(usuarioRepository, never()).apagarComEstantesELivros(anyLong());
+        }
+    }
+
+    @Nested
+    @DisplayName("Listar usuários comuns")
+    class Listar {
+
+        private UsuarioNode usuarioComum(String nome, String email) {
+            return new UsuarioNode(nome, email);
+        }
+
+        @Test
+        @DisplayName("E20 (U11): lista em ordem alfabética sem diferenciar maiúsculas e acentos")
+        void ordemAlfabetica() {
+            UsuarioNode bruno = usuarioComum("Bruno", "bruno@email.com");
+            UsuarioNode ana = usuarioComum("ana", "ana@email.com");
+            UsuarioNode agata = usuarioComum("Ágata", "agata@email.com");
+            when(usuarioRepository.findAllUsuariosComuns()).thenReturn(List.of(bruno, ana, agata));
+            assertThat(service.listarUsuariosComuns()).containsExactly(agata, ana, bruno);
+        }
+
+        @Test
+        @DisplayName("E20 (U11): sem usuários retorna lista vazia")
+        void vazia() {
+            when(usuarioRepository.findAllUsuariosComuns()).thenReturn(List.of());
+            assertThat(service.listarUsuariosComuns()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("U11 (derivado): listar não salva nada")
+        @Tag("derivado")
+        void naoSalva() {
+            when(usuarioRepository.findAllUsuariosComuns()).thenReturn(List.of(usuarioComum("Ana", "ana@email.com")));
+            service.listarUsuariosComuns();
+            verify(usuarioRepository, never()).save(any());
         }
     }
 }
