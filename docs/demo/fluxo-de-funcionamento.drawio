@@ -1,0 +1,200 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Produto" id="fluxo-produto">
+    <mxGraphModel dx="2252" dy="1781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fe_in" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Front-End&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="130" x="20" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="bot_in" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Bot Telegram&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="130" x="20" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="ocr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&lt;b&gt;ocr-service&lt;/b&gt;&lt;br&gt;OCR (OpenCV + Tesseract)" vertex="1">
+          <mxGeometry height="60" width="140" x="230" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="est" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=3;" value="&lt;b&gt;Agente Estruturador&lt;/b&gt;&lt;br&gt;(Gemini)" vertex="1">
+          <mxGeometry height="70" width="160" x="430" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="nota_est" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;spacingRight=8;fontSize=11;" value="Transforma o texto bruto do OCR em &lt;b&gt;título, autores, volume e editora&lt;/b&gt;.&lt;br&gt;&lt;i&gt;Opcional: passou de 5 s ou sem chave, a foto segue sem ele.&lt;/i&gt;" vertex="1">
+          <mxGeometry height="90" width="240" x="390" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="conf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Front-End&lt;/b&gt;&lt;br&gt;Usuário confirma os dados" vertex="1">
+          <mxGeometry height="60" width="150" x="680" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="db1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Banco de Dados&lt;/b&gt;&lt;br&gt;Cria o livro no Neo4j" vertex="1">
+          <mxGeometry height="70" width="150" x="900" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="enr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=3;" value="&lt;b&gt;Agente Enriquecedor&lt;/b&gt;&lt;br&gt;(Gemini + catálogos)" vertex="1">
+          <mxGeometry height="70" width="170" x="1190" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="nota_enr" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;spacingRight=8;fontSize=11;" value="Ferramentas: &lt;b&gt;Google Books&lt;/b&gt; e &lt;b&gt;BrasilAPI&lt;/b&gt; (ISBN).&lt;br&gt;Confere se é a mesma edição.&lt;br&gt;Só preenche o que confirmou: editora, ISBN, páginas, sinopse, gêneros." vertex="1">
+          <mxGeometry height="100" width="250" x="1130" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="dec" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" value="Achou dados&lt;br&gt;confiáveis?" vertex="1">
+          <mxGeometry height="90" width="130" x="1400" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="upd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Banco de Dados&lt;/b&gt;&lt;br&gt;Atualiza o livro com os metadados" vertex="1">
+          <mxGeometry height="70" width="150" x="1590" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="join" parent="1" style="ellipse;html=1;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="10" width="10" x="1795" y="295" as="geometry" />
+        </mxCell>
+        <mxCell id="out_fe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Front-End&lt;/b&gt;&lt;br&gt;Mostra o que a IA preencheu" vertex="1">
+          <mxGeometry height="60" width="160" x="1870" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="out_bot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Bot Telegram&lt;/b&gt;&lt;br&gt;Responde no chat com o livro salvo" vertex="1">
+          <mxGeometry height="60" width="160" x="1870" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="fe_in" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;" target="ocr" value="foto da capa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="bot_in" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;" target="ocr" value="foto da capa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="ocr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;" target="est" value="texto&lt;br&gt;bruto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="est" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;" target="conf" value="Front">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="conf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontStyle=1;" target="db1" value="dados&lt;br&gt;confirmados">
+          <mxGeometry relative="1" x="-0.2381" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="est" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;" target="db1" value="Bot: salva direto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="db1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;" target="enr" value="pede enriquecimento&lt;br&gt;(texto do OCR)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="enr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="dec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;fontSize=14;" target="upd" value="SIM">
+          <mxGeometry relative="1" x="0.3846" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;fontSize=14;" target="join" value="NÃO">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="upd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="join">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="join" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;" target="out_fe" value="Front">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="join" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontStyle=1;" target="out_bot" value="Bot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conv_in" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Bot Telegram&lt;/b&gt;&lt;br&gt;Usuário manda uma mensagem" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="conv_ag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=3;" value="&lt;b&gt;Agente Conversacional&lt;/b&gt;&lt;br&gt;&quot;Christopher&quot;&lt;br&gt;(gpt-oss-120b via Groq)" vertex="1">
+          <mxGeometry height="80" width="190" x="250" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="conv_out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Bot Telegram&lt;/b&gt;&lt;br&gt;Responde no chat" vertex="1">
+          <mxGeometry height="60" width="150" x="520" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="nota_conv" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;spacingRight=8;fontSize=11;" value="Só fala de &lt;b&gt;livros, leitura e do Shelf Scan&lt;/b&gt;.&lt;br&gt;Lembra as últimas mensagens da conversa e pesquisa na web quando não conhece o livro.&lt;br&gt;&lt;i&gt;Só para conta conectada; até 4 mensagens por minuto.&lt;/i&gt;" vertex="1">
+          <mxGeometry height="100" width="280" x="205" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" edge="1" parent="1" source="conv_in" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;" target="conv_ag" value="texto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" edge="1" parent="1" source="conv_ag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontStyle=1;" target="conv_out" value="resposta">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_fe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="Front-End" vertex="1">
+          <mxGeometry height="30" width="100" x="20" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_bot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="Bot Telegram" vertex="1">
+          <mxGeometry height="30" width="100" x="130" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_ocr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="ocr-service" vertex="1">
+          <mxGeometry height="30" width="100" x="240" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="database-service" vertex="1">
+          <mxGeometry height="30" width="110" x="350" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_ag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;fontSize=11;" value="borda grossa = agente de IA" vertex="1">
+          <mxGeometry height="30" width="190" x="590" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;fontColor=#333333;" value="&lt;b&gt;Desenvolvedor&lt;/b&gt;&lt;br&gt;Adiciona a label&amp;nbsp;&lt;div&gt;&lt;b&gt;&lt;font color=&quot;#8d167a&quot;&gt;gerar-testes&lt;/font&gt;&lt;/b&gt; no PR&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="150" x="900" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-2" parent="1" style="swimlane;startSize=34;html=1;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=3;fontStyle=1;fontSize=14;swimlaneFillColor=#fafafa;" value="Agente Gerador de Testes (Claude Code no GitHub Actions)" vertex="1">
+          <mxGeometry height="250" width="1000" x="1100" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-3" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;" value="Lê as &lt;b&gt;specs&lt;/b&gt; das classes alteradas&lt;br&gt;(docs/specs)" vertex="1">
+          <mxGeometry height="60" width="160" x="20" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-4" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;" value="Gera os testes&lt;br&gt;pedidos nas specs" vertex="1">
+          <mxGeometry height="60" width="150" x="210" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-5" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;dashed=1;" value="Testes derivados&lt;br&gt;&lt;i&gt;(se achar necessário)&lt;/i&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="305" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-6" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;" value="Roda os testes&lt;br&gt;e o &lt;b&gt;PIT&lt;/b&gt; (mutação)" vertex="1">
+          <mxGeometry height="60" width="150" x="400" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-7" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;" value="Escreve o &lt;b&gt;relatório&lt;/b&gt;&lt;br&gt;com observações" vertex="1">
+          <mxGeometry height="60" width="150" x="590" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-8" parent="z9J7_vnCquGYRmwXwMIz-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;" value="Abre PR &lt;b&gt;testes-agente/*&lt;/b&gt;&lt;br&gt;para a branch do gatilho" vertex="1">
+          <mxGeometry height="60" width="190" x="780" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="JvunwETkEKWnCl-f15nY-17" parent="z9J7_vnCquGYRmwXwMIz-2" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.github;rounded=1;fillColor=none;strokeColor=none;gradientColor=none;" value="" vertex="1">
+          <mxGeometry height="90" width="90" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-11" parent="z9J7_vnCquGYRmwXwMIz-2" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;spacingRight=8;fontSize=11;" value="No fim, o workflow tira a label: &lt;b&gt;1 clique = 1 execução&lt;/b&gt;. Para rodar de novo, basta pôr a label outra vez." vertex="1">
+          <mxGeometry height="60" width="300" x="640" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;fontColor=#333333;" value="&lt;b&gt;CI&lt;/b&gt;&lt;br&gt;Roda os testes no PR gerado" vertex="1">
+          <mxGeometry height="60" width="150" x="2150" y="685" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;fontColor=#333333;" value="&lt;b&gt;Desenvolvedor&lt;/b&gt;&lt;br&gt;Revisa e faz o merge" vertex="1">
+          <mxGeometry height="60" width="150" x="2350" y="685" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-12" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-13" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-14" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-15" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z9J7_vnCquGYRmwXwMIz-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-16" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="z9J7_vnCquGYRmwXwMIz-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-17" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-18" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-19" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="z9J7_vnCquGYRmwXwMIz-20" edge="1" parent="1" source="z9J7_vnCquGYRmwXwMIz-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" target="z9J7_vnCquGYRmwXwMIz-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5atcpH3RMY6vwYN14R98-1" parent="1" style="text;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 22px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 700; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: nowrap; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; display: inline !important; float: none;&quot;&gt;Agente de IA no processo: geração de testes&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="500" x="900" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="5atcpH3RMY6vwYN14R98-2" parent="1" style="text;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 22px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 700; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: nowrap; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;Agente de IA para o Telegram: Conversacional&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="500" x="20" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="5atcpH3RMY6vwYN14R98-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CACACA;strokeColor=#666666;fontColor=#333333;" value="desenvolvimento" vertex="1">
+          <mxGeometry height="30" width="110" x="470" y="-10" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
