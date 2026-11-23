@@ -22,6 +22,21 @@ class DetectorWithoutRegions:
         return []
 
 
+# Os dois pedaços em que o EAST corta "MEMÓRIAS" na capa de amostra (coordenadas
+# reais, medidas na t7): 53% da caixa menor está dentro da outra
+MEMORIAS_FRAGMENTS = [
+    {"box": [[295, 1198], [294, 1121], [712, 1116], [714, 1193]], "confidence": 0.99},  # lida sozinha: "MEMÓR|"
+    {"box": [[473, 1202], [473, 1132], [884, 1125], [886, 1196]], "confidence": 0.99},  # lida sozinha: "MORIAS"
+]
+
+
+class DetectorWithFragments:
+    """Detector falso que devolve só os dois pedaços reais de "MEMÓRIAS" (injeção de dependência)"""
+
+    def detect_text(self, img):
+        return [dict(region) for region in MEMORIAS_FRAGMENTS]
+
+
 @pytest.fixture(scope="module")
 def cover_result(text_detector):
     """Resposta do pipeline para a capa de amostra, calculada uma vez só"""
@@ -77,6 +92,23 @@ class TestCoverReading:
                     for word in ("TRADUÇÃO", "BORIS", "EDITORA")}
 
         assert position["TRADUÇÃO"] < position["BORIS"] < position["EDITORA"]
+
+
+class TestBoxFusion:
+    """
+        A fusão das caixas (merge_boxes) roda no pipeline, antes do OCR por região
+    """
+
+    def test_fragments_become_one_reading(self):
+        """
+        Os dois pedaços viram uma caixa só, então o raw_text tem uma linha só,
+        com a palavra inteira; sem a fusão, seriam "MEMÓR|" e "MORIAS"
+        """
+        result = run_pipeline(SAMPLE_PATH.read_bytes(), DetectorWithFragments())
+
+        lines = result["raw_text"].upper().replace("Ó", "O").splitlines()
+        assert len(lines) == 1
+        assert "MEMORIAS" in lines[0]
 
 
 class TestFallbackAndRefusal:
