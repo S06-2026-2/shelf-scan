@@ -9,6 +9,7 @@ from ocr.exceptions import UnsupportedFormatError
 from ocr.pipeline import run_pipeline
 
 SAMPLE_PATH = Path(__file__).resolve().parent.parent / "samples" / "memorias_subsolo.jpg"
+GOLD_SPINE_PATH = SAMPLE_PATH.parent / "lombada_frieren_vol10.jpeg"
 
 
 class DetectorWithoutRegions:
@@ -93,6 +94,16 @@ class TestCoverReading:
 
         assert position["TRADUÇÃO"] < position["BORIS"] < position["EDITORA"]
 
+    def test_title_words_come_out_whole(self, cover_result):
+        """
+        Regressão da fusão (t9): com o EAST real, MEMÓRIAS e SUBSOLO saem
+        inteiros numa linha; sem a fusão, saíam MEMÓR| + MORIAS e SUBSO + JBSOLO
+        """
+        lines = cover_result["raw_text"].upper().replace("Ó", "O").splitlines()
+
+        for word in ("MEMORIAS", "SUBSOLO"):
+            assert any(word in line for line in lines), word
+
 
 class TestBoxFusion:
     """
@@ -109,6 +120,23 @@ class TestBoxFusion:
         lines = result["raw_text"].upper().replace("Ó", "O").splitlines()
         assert len(lines) == 1
         assert "MEMORIAS" in lines[0]
+
+
+class TestKnownMisses:
+    """
+        Falhas conhecidas, documentadas com o motivo: quando passarem a funcionar,
+        o pytest mostra XPASS e o marcador pode sair
+    """
+
+    @pytest.mark.xfail(reason=(
+        "o EAST acha 1 caixa só na lombada de letra dourada do vol. 10 da Frieren "
+        "e lê \"0\": é uma falha de detecção, que a fusão das caixas não resolve"
+    ))
+    def test_gold_spine_title_is_read(self, text_detector):
+        result = run_pipeline(GOLD_SPINE_PATH.read_bytes(), text_detector)
+
+        text = result["raw_text"].upper()
+        assert any(word in text for word in ("FRIEREN", "JORNADA", "ALÉM", "ALEM"))
 
 
 class TestFallbackAndRefusal:
