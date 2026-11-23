@@ -1,0 +1,43 @@
+.detalhes-livro {
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.detalhes-livro::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.detalhes-livro h2 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+}
+
+.detalhes-livro dl {
+  margin: 0 0 16px;
+}
+
+.detalhes-livro-linha {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.detalhes-livro dt {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.detalhes-livro dd {
+  margin: 0;
+}
+
+.detalhes-livro-sinopse {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

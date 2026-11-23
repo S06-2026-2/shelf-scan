@@ -1,4 +1,4 @@
-import type { Livro, NovoLivro } from '../tipos/livro'
+import type { DetalhesDoLivro, Livro, NovoLivro } from '../tipos/livro'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
@@ -29,7 +29,20 @@ export function livroLocal(novo: NovoLivro): Livro {
     progresso: novo.status === 'lendo' ? 0 : undefined,
     concluidoEm: novo.status === 'lido' ? mesEAno(hoje.getFullYear(), hoje.getMonth() + 1) : undefined,
     volume: novo.volume,
+    editora: novo.editora,
     genero: novo.genero,
     sinopse: novo.sinopse,
+  }
+}
+
+// No modo demonstração não há banco: o painel mostra o que o cartão já sabe.
+export function detalhesLocais(livro: Livro): DetalhesDoLivro {
+  return {
+    titulo: livro.titulo,
+    autores: [livro.autor],
+    editora: livro.editora,
+    volume: livro.volume,
+    sinopse: livro.sinopse,
+    tags: livro.genero ? [livro.genero] : [],
   }
 }
