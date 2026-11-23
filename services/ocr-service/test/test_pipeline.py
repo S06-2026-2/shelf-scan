@@ -9,6 +9,7 @@ from ocr.exceptions import UnsupportedFormatError
 from ocr.pipeline import run_pipeline
 
 SAMPLE_PATH = Path(__file__).resolve().parent.parent / "samples" / "memorias_subsolo.jpg"
+GOLD_SPINE_PATH = SAMPLE_PATH.parent / "lombada_frieren_vol10.jpeg"
 
 
 class DetectorWithoutRegions:
@@ -20,6 +21,21 @@ class DetectorWithoutRegions:
 
     def detect_text(self, img):
         return []
+
+
+# Os dois pedaços em que o EAST corta "MEMÓRIAS" na capa de amostra (coordenadas
+# reais, medidas na t7): 53% da caixa menor está dentro da outra
+MEMORIAS_FRAGMENTS = [
+    {"box": [[295, 1198], [294, 1121], [712, 1116], [714, 1193]], "confidence": 0.99},  # lida sozinha: "MEMÓR|"
+    {"box": [[473, 1202], [473, 1132], [884, 1125], [886, 1196]], "confidence": 0.99},  # lida sozinha: "MORIAS"
+]
+
+
+class DetectorWithFragments:
+    """Detector falso que devolve só os dois pedaços reais de "MEMÓRIAS" (injeção de dependência)"""
+
+    def detect_text(self, img):
+        return [dict(region) for region in MEMORIAS_FRAGMENTS]
 
 
 @pytest.fixture(scope="module")
@@ -77,6 +93,50 @@ class TestCoverReading:
                     for word in ("TRADUÇÃO", "BORIS", "EDITORA")}
 
         assert position["TRADUÇÃO"] < position["BORIS"] < position["EDITORA"]
+
+    def test_title_words_come_out_whole(self, cover_result):
+        """
+        Regressão da fusão (t9): com o EAST real, MEMÓRIAS e SUBSOLO saem
+        inteiros numa linha; sem a fusão, saíam MEMÓR| + MORIAS e SUBSO + JBSOLO
+        """
+        lines = cover_result["raw_text"].upper().replace("Ó", "O").splitlines()
+
+        for word in ("MEMORIAS", "SUBSOLO"):
+            assert any(word in line for line in lines), word
+
+
+class TestBoxFusion:
+    """
+        A fusão das caixas (merge_boxes) roda no pipeline, antes do OCR por região
+    """
+
+    def test_fragments_become_one_reading(self):
+        """
+        Os dois pedaços viram uma caixa só, então o raw_text tem uma linha só,
+        com a palavra inteira; sem a fusão, seriam "MEMÓR|" e "MORIAS"
+        """
+        result = run_pipeline(SAMPLE_PATH.read_bytes(), DetectorWithFragments())
+
+        lines = result["raw_text"].upper().replace("Ó", "O").splitlines()
+        assert len(lines) == 1
+        assert "MEMORIAS" in lines[0]
+
+
+class TestKnownMisses:
+    """
+        Falhas conhecidas, documentadas com o motivo: quando passarem a funcionar,
+        o pytest mostra XPASS e o marcador pode sair
+    """
+
+    @pytest.mark.xfail(reason=(
+        "o EAST acha 1 caixa só na lombada de letra dourada do vol. 10 da Frieren "
+        "e lê \"0\": é uma falha de detecção, que a fusão das caixas não resolve"
+    ))
+    def test_gold_spine_title_is_read(self, text_detector):
+        result = run_pipeline(GOLD_SPINE_PATH.read_bytes(), text_detector)
+
+        text = result["raw_text"].upper()
+        assert any(word in text for word in ("FRIEREN", "JORNADA", "ALÉM", "ALEM"))
 
 
 class TestFallbackAndRefusal:
