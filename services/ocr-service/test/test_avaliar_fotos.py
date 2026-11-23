@@ -1,4 +1,26 @@
-from scripts.avaliar_fotos import SAMPLES_DIR, count_keyword, load_gabarito, normalize
+import cv2
+import numpy as np
+
+from scripts.avaliar_fotos import SAMPLES_DIR, count_boxes, count_keyword, load_gabarito, normalize
+
+
+def white_png():
+    """Imagem válida e em branco, só para passar pela decodificação"""
+    ok, buffer = cv2.imencode(".png", np.full((400, 600, 3), 255, dtype=np.uint8))
+    assert ok
+    return buffer.tobytes()
+
+
+def rect(x, y, w, h):
+    """Região w × h na ordem do EAST: base-esquerda, topo-esquerda, topo-direita, base-direita"""
+    return {"box": [[x, y + h], [x, y], [x + w, y], [x + w, y + h]], "confidence": 0.9}
+
+
+class DetectorWithFixedRegions:
+    """Detector falso: dois pedaços horizontais sobrepostos e uma caixa de lombada"""
+
+    def detect_text(self, img):
+        return [rect(0, 0, 100, 40), rect(70, 0, 60, 40), rect(300, 0, 30, 100)]
 
 
 class TestNormalize:
@@ -48,6 +70,19 @@ class TestCountKeyword:
     def test_empty_text(self):
         """O no_text (raw_text vazio) dá zero, sem erro"""
         assert count_keyword("", "BLUE", limit=6) == 0
+
+
+class TestCountBoxes:
+    """
+        Testes da contagem de caixas: as do EAST e as que sobram depois da fusão
+    """
+
+    def test_counts_before_and_after_the_fusion(self):
+        """
+        3 caixas do EAST viram 2 na leitura: os dois pedaços sobrepostos se
+        juntam, e a caixa de lombada fica como veio
+        """
+        assert count_boxes(DetectorWithFixedRegions(), white_png()) == (3, 2)
 
 
 class TestGabarito:
