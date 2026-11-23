@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 import pytest
 
+from ocr.regions import merge_boxes
+
 SAMPLES_DIR = Path(__file__).resolve().parent.parent / "samples"
 
 # Anotação manual das fotos de estante em samples/ (coordenadas da foto):
@@ -146,3 +148,21 @@ class TestSpineBoxShape:
         for region in shelf_regions[shelf_name]:
             x_min, x_max, _, _ = box_bounds(region)
             assert not any(x_min < d - 10 and x_max > d + 10 for d in dividers)
+
+
+class TestSpineFusion:
+    """
+        A fusão das caixas (t4) não mexe nas lombadas: caixas verticais nunca se juntam
+    """
+
+    @pytest.mark.parametrize("shelf_name", SHELVES)
+    def test_fusion_keeps_spine_boxes(self, shelf_regions, shelf_name):
+        """
+        Regressão da fusão (t9): nas duas estantes reais, a merge_boxes devolve
+        exatamente as caixas que recebeu (82 na Frieren, 26 na Blue Box).
+        Unidas, as caixas de lombada eram lidas de cabeça para baixo e
+        atravessavam a lombada vizinha
+        """
+        regions = shelf_regions[shelf_name]
+
+        assert merge_boxes(regions) == regions
