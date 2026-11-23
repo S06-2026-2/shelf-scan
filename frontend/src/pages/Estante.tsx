@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CartaoLivro } from '../components/CartaoLivro'
+import { DetalhesLivro } from '../components/DetalhesLivro'
 import { useLivros } from '../estado/LivrosContext'
-import type { StatusLeitura } from '../tipos/livro'
+import type { Livro, StatusLeitura } from '../tipos/livro'
 import './Estante.css'
 
 type Filtro = 'todos' | StatusLeitura
@@ -16,8 +17,9 @@ const FILTROS: { valor: Filtro; rotulo: string }[] = [
 ]
 
 export function Estante() {
-  const { livros, carregando, erro, recarregar } = useLivros()
+  const { livros, carregando, erro, recarregar, enriquecendo, aviso, fecharAviso } = useLivros()
   const [filtro, setFiltro] = useState<Filtro>('todos')
+  const [aberto, setAberto] = useState<Livro | null>(null)
 
   const contar = (valor: Filtro) =>
     valor === 'todos' ? livros.length : livros.filter((livro) => livro.status === valor).length
@@ -32,6 +34,15 @@ export function Estante() {
           + Adicionar livro
         </Link>
       </header>
+
+      {aviso && (
+        <p className="estante-aviso" role="status">
+          {aviso}{' '}
+          <button type="button" className="estante-aviso-fechar" onClick={fecharAviso}>
+            Fechar
+          </button>
+        </p>
+      )}
 
       {erro ? (
         <div role="alert">
@@ -66,13 +77,19 @@ export function Estante() {
             <ul className="estante-grade">
               {visiveis.map((livro) => (
                 <li key={livro.id}>
-                  <CartaoLivro livro={livro} />
+                  <CartaoLivro
+                    livro={livro}
+                    enriquecendo={enriquecendo.has(livro.id)}
+                    onDetalhes={() => setAberto(livro)}
+                  />
                 </li>
               ))}
             </ul>
           )}
         </>
       )}
+
+      {aberto && <DetalhesLivro livro={aberto} onFechar={() => setAberto(null)} />}
     </div>
   )
 }

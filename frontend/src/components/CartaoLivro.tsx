@@ -3,7 +3,14 @@ import { CapaLivro } from './CapaLivro'
 import { SeloStatus } from './SeloStatus'
 import './CartaoLivro.css'
 
-export function CartaoLivro({ livro }: { livro: Livro }) {
+interface Propriedades {
+  livro: Livro
+  // a IA está completando este livro
+  enriquecendo?: boolean
+  onDetalhes?: () => void
+}
+
+export function CartaoLivro({ livro, enriquecendo = false, onDetalhes }: Propriedades) {
   return (
     <article className="cartao-livro">
       <div className="cartao-livro-capa">
@@ -41,6 +48,18 @@ export function CartaoLivro({ livro }: { livro: Livro }) {
       )}
 
       {livro.aviso && <p className="cartao-livro-aviso">{livro.aviso}</p>}
+
+      {enriquecendo && (
+        <p className="cartao-livro-ia" role="status">
+          Completando com IA…
+        </p>
+      )}
+
+      {onDetalhes && (
+        <button type="button" className="cartao-livro-detalhes" onClick={onDetalhes}>
+          Detalhes
+        </button>
+      )}
     </article>
   )
 }

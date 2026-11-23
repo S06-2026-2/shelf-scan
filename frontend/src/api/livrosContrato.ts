@@ -1,4 +1,4 @@
-import type { Livro, NovoLivro, StatusLeitura } from '../tipos/livro'
+import type { DetalhesDoLivro, Livro, NovoLivro, ResumoDoEnriquecimento, StatusLeitura } from '../tipos/livro'
 import { corDoTitulo, mesEAno, textoDosAutores } from '../utilitarios/livro'
 
 // Formato das respostas e do corpo do database-service, conforme docs/api/database-service.md
@@ -32,6 +32,7 @@ interface NovoLivroDoContrato {
   autores: string[]
   tags?: string[]
   volume?: string
+  editora?: string
   paginas?: number
   sinopse?: string
   leitura: { status: 'quero-ler' | 'lendo' | 'lido'; paginaAtual?: number }
@@ -44,6 +45,7 @@ export function montarCorpo(novo: NovoLivro): NovoLivroDoContrato {
     autores: novo.autores,
     tags: novo.genero ? [novo.genero] : undefined,
     volume: novo.volume,
+    editora: novo.editora,
     paginas: novo.paginas,
     sinopse: novo.sinopse,
     leitura: {
@@ -85,6 +87,53 @@ export function converterResumo(resumo: LivroResumoDoContrato): Livro {
     concluidoEm: status === 'lido' ? mesDaConclusao(leitura.dataConclusao) : undefined,
     emprestadoPara: resumo.emprestado ? resumo.emprestadoPara : undefined,
     aviso: resumo.emprestado ? avisoDeDevolucao(resumo.diasParaVencimento) : undefined,
+  }
+}
+
+// GET /livro/{id}: só os campos que o painel de detalhes mostra
+export interface LivroDetalheDoContrato {
+  titulo: string
+  autores: string[]
+  tags: string[]
+  isbn: string | null
+  volume: string | null
+  editora?: string | null
+  paginas: number | null
+  sinopse: string | null
+}
+
+export function converterDetalhes(livro: LivroDetalheDoContrato): DetalhesDoLivro {
+  return {
+    titulo: livro.titulo,
+    autores: livro.autores,
+    editora: livro.editora ?? undefined,
+    isbn: livro.isbn ?? undefined,
+    volume: livro.volume ?? undefined,
+    paginas: livro.paginas ?? undefined,
+    sinopse: livro.sinopse ?? undefined,
+    tags: livro.tags,
+  }
+}
+
+// POST .../enriquecimento: o que a tela usa da resposta
+export interface EnriquecimentoDoContrato {
+  camposPreenchidos: string[]
+  aviso: string
+}
+
+const ROTULOS_DOS_CAMPOS: Record<string, string> = {
+  sinopse: 'sinopse',
+  isbn: 'ISBN',
+  paginas: 'páginas',
+  editora: 'editora',
+  autores: 'autores',
+  tags: 'gêneros',
+}
+
+export function converterEnriquecimento(resposta: EnriquecimentoDoContrato): ResumoDoEnriquecimento {
+  return {
+    campos: resposta.camposPreenchidos.map((campo) => ROTULOS_DOS_CAMPOS[campo] ?? campo),
+    aviso: resposta.aviso,
   }
 }
 

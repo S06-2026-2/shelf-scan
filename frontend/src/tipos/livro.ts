@@ -12,6 +12,7 @@ export interface Livro {
   emprestadoPara?: string
   aviso?: string
   volume?: string
+  editora?: string
   genero?: string
   sinopse?: string
 }
@@ -21,11 +22,32 @@ export interface NovoLivro {
   titulo: string
   autores: string[]
   volume?: string
+  editora?: string
+  // Texto que o OCR leu da capa. Não vai no cadastro: só ajuda o enriquecimento a achar a edição certa.
+  textoBruto?: string
   genero?: string
   sinopse?: string
   paginas?: number
   status: Exclude<StatusLeitura, 'emprestado'>
   paginaAtual?: number
+}
+
+// Dados completos de um livro, como o banco guarda (painel de detalhes).
+export interface DetalhesDoLivro {
+  titulo: string
+  autores: string[]
+  editora?: string
+  isbn?: string
+  volume?: string
+  paginas?: number
+  sinopse?: string
+  tags: string[]
+}
+
+// O que a IA completou no livro, para o aviso da estante.
+export interface ResumoDoEnriquecimento {
+  campos: string[]
+  aviso: string
 }
 
 // O que o OCR identifica na foto (contrato do ocr-service). Ano, gênero e sinopse não vêm daqui:

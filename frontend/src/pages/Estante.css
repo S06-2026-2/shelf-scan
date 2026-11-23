@@ -62,3 +62,23 @@
   margin: 0;
   color: var(--ink-muted);
 }
+
+.estante-aviso {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.estante-aviso-fechar {
+  margin-left: 8px;
+  padding: 0;
+  font: inherit;
+  color: var(--ink-muted);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}

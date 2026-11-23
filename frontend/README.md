@@ -61,7 +61,7 @@ Copie `.env.example` para `.env.local` e ajuste (o `.env.local` não vai para o 
 
 Enquanto o agente que estrutura o texto não existir, o OCR real devolve só o **texto bruto**; nesse caso a tela de confirmação mostra o texto lido e pede para preencher título e autor. Ano, gênero e sinopse não vêm do OCR (o enriquecimento é do `database-service`) e ficam para preencher à mão.
 
-**Contrato do banco:** `docs/api/database-service.md`. O front lê a estante padrão do usuário (`GET /usuario/{id}/estante` e `.../estante/{estanteId}/livro`) e salva com `POST /usuario/{id}/livro`; as conversões ficam em `src/api/livrosContrato.ts` e as chamadas em `src/api/livros.ts`. O banco guarda título, autores, volume, páginas, sinopse e tags (o gênero vira uma tag) e calcula o progresso de leitura; **não guarda editora nem ano**, por isso esses campos não aparecem na confirmação. O `database-service` ainda não libera CORS: em desenvolvimento o Vite repassa `/api` para ele (`server.proxy` em `vite.config.ts`).
+**Contrato do banco:** `docs/api/database-service.md`. O front lê a estante padrão do usuário (`GET /usuario/{id}/estante` e `.../estante/{estanteId}/livro`) e salva com `POST /usuario/{id}/livro`; as conversões ficam em `src/api/livrosContrato.ts` e as chamadas em `src/api/livros.ts`. O banco guarda título, autores, volume, **editora**, páginas, sinopse e tags (o gênero vira uma tag) e calcula o progresso de leitura; **não guarda ano**, por isso esse campo não aparece na confirmação. Depois de salvar, o front chama o **enriquecimento** (`POST .../livro/{id}/enriquecimento`, com o texto que o OCR leu) em segundo plano: o cartão mostra "Completando com IA…", a estante se atualiza e uma faixa diz o que a IA preencheu; o botão **Detalhes** do cartão abre os dados completos. Sem `GEMINI_API_KEY` no banco o enriquecimento responde 503 e o livro fica como foi cadastrado. O `database-service` ainda não libera CORS: em desenvolvimento o Vite repassa `/api` para ele (`server.proxy` em `vite.config.ts`).
 
 ## Como testar
 
@@ -153,6 +153,7 @@ O front é estático (`npm run build` gera o `dist/`). Num host como o Vercel:
 - Sem autenticação: usuário de exemplo fixo.
 - A estante só mostra a estante padrão do usuário; não há telas para outras estantes nem para empréstimos (a API já os tem).
 - Amigos, solicitações, bibliotecas e recomendações continuam de exemplo (a API não tem essas relações).
-- Sem `VITE_DATABASE_API_URL` e `VITE_USUARIO_ID`, a estante e o "Salvar na estante" funcionam só em memória.
+- Sem `VITE_DATABASE_API_URL` e `VITE_USUARIO_ID`, a estante e o "Salvar na estante" funcionam só em memória (sem enriquecimento).
+- O enriquecimento com IA depende da `GEMINI_API_KEY` no `.env` da raiz (lida pelo banco).
 - Sem `VITE_OCR_API_URL` o OCR é simulado; com ela, o reconhecimento real depende do `ocr-service` no ar (`http://localhost:8301` pelo compose).
 - Sem testes unitários.

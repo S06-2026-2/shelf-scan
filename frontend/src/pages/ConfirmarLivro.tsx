@@ -70,6 +70,7 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
   const [previa, setPrevia] = useState<string | null>(null)
   const [titulo, setTitulo] = useState(reconhecido.titulo)
   const [autor, setAutor] = useState(reconhecido.autor)
+  const [editora, setEditora] = useState(reconhecido.editora ?? '')
   const [volume, setVolume] = useState(reconhecido.volume ?? '')
   // Gênero, sinopse e páginas não vêm do OCR (o enriquecimento é do database-service): ficam à mão.
   const [genero, setGenero] = useState('')
@@ -102,6 +103,8 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
         titulo: titulo.trim(),
         autores: separarAutores(autor),
         volume: opcional(volume),
+        editora: opcional(editora),
+        textoBruto: opcional(textoBruto),
         genero: opcional(genero),
         sinopse: opcional(sinopse),
         paginas: numeroOpcional(paginas),
@@ -159,6 +162,10 @@ function Formulario({ leitura, imagem }: EstadoConfirmacao) {
           <div className="campo">
             <label htmlFor="autor">Autor(es), separados por vírgula</label>
             <input id="autor" value={autor} onChange={(e) => setAutor(e.target.value)} />
+          </div>
+          <div className="campo">
+            <label htmlFor="editora">Editora</label>
+            <input id="editora" value={editora} onChange={(e) => setEditora(e.target.value)} />
           </div>
           <div className="campo">
             <label htmlFor="volume">Volume</label>
