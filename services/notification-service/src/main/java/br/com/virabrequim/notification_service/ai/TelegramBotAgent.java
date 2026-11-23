@@ -4,13 +4,19 @@ import br.com.virabrequim.notification_service.vinculo.ConexaoTelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.longpolling.util.DefaultLongPollingUpdateConsumer;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -41,21 +47,28 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
     private final TelegramClient telegramClient;
     private final ConexaoTelegramService conexaoTelegramService;
     private final AgenteConversacional agenteConversacional;
+    private final AgenteDeFotos agenteDeFotos;
     private final Executor executorDeConversas;
 
     public TelegramBotAgent(
             TelegramClient telegramClient,
             ConexaoTelegramService conexaoTelegramService,
             AgenteConversacional agenteConversacional,
+            AgenteDeFotos agenteDeFotos,
             Executor executorDeConversas) {
         this.telegramClient = telegramClient;
         this.conexaoTelegramService = conexaoTelegramService;
         this.agenteConversacional = agenteConversacional;
+        this.agenteDeFotos = agenteDeFotos;
         this.executorDeConversas = executorDeConversas;
     }
 
     @Override
     public void consume(Update update) {
+        if (update.hasMessage() && update.getMessage().hasPhoto()) {
+            receberFoto(update.getMessage());
+            return;
+        }
         if (!update.hasMessage() || !update.getMessage().hasText()) {
             return;
         }
@@ -71,6 +84,29 @@ public class TelegramBotAgent extends DefaultLongPollingUpdateConsumer {
             return;
         }
         executorDeConversas.execute(() -> conversar(chatId, texto));
+    }
+
+    // O Telegram manda a mesma foto em vários tamanhos; o último da lista é o maior.
+    private void receberFoto(Message mensagem) {
+        Long chatId = mensagem.getChatId();
+        List<PhotoSize> tamanhos = mensagem.getPhoto();
+        String arquivoId = tamanhos.get(tamanhos.size() - 1).getFileId();
+        executorDeConversas.execute(() -> {
+            avisarQueEstaDigitando(chatId);
+            enviar(chatId, agenteDeFotos.processar(chatId, () -> baixarFoto(arquivoId)));
+        });
+    }
+
+    private byte[] baixarFoto(String arquivoId) {
+        try {
+            org.telegram.telegrambots.meta.api.objects.File arquivo =
+                    telegramClient.execute(GetFile.builder().fileId(arquivoId).build());
+            try (InputStream conteudo = telegramClient.downloadFileAsStream(arquivo)) {
+                return conteudo.readAllBytes();
+            }
+        } catch (TelegramApiException | IOException e) {
+            throw new IllegalStateException("Não foi possível baixar a foto do Telegram.", e);
+        }
     }
 
     private void conversar(Long chatId, String texto) {
