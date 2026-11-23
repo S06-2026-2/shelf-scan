@@ -47,3 +47,15 @@ llm:
     max-tokens: 1000
     mensagens-por-minuto: 4
     turnos-no-historico: 4
+
+ocr:
+  # Endereço do ocr-service. Vazio = o bot não lê fotos (o serviço sobe normalmente)
+  url-base: ${OCR_URL_BASE:}
+  # Segredo compartilhado com o OCR (cabeçalho X-Internal-Token). Vazio = não envia o cabeçalho
+  token-interno: ${OCR_INTERNAL_TOKEN:}
+  # Limite de fotos por usuário
+  fotos-por-minuto: ${OCR_FOTOS_POR_MINUTO:3}
+
+database:
+  # Endereço do database-service, sem o prefixo da API. Vazio = o bot não guarda livros
+  url-base: ${DATABASE_SERVICE_URL:}

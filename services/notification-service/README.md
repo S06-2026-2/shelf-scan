@@ -149,6 +149,21 @@ Qualquer mensagem de texto que não seja um comando (`/...`) é respondida pelo 
 - **Privacidade:** o texto das mensagens e o histórico recente são enviados ao provedor do modelo (hoje a Groq). Nome e identificadores do usuário não são enviados. Não use o plano gratuito do Google com usuários reais: os termos permitem usar o conteúdo para melhorar produtos e exigem plano pago na União Europeia.
 - Sem `LLM_API_KEY`, o agente fica desativado e o serviço sobe normalmente.
 
+### Fotos de livros pelo bot
+
+Quem tem a conta ligada ao Telegram pode **mandar uma foto da capa ou da lombada** ao Christopher. O bot baixa a foto, lê no `ocr-service` (campo `image`, com o cabeçalho `X-Internal-Token` quando há segredo), **guarda o livro na estante** do usuário no `database-service` (como "quero ler") e pede o enriquecimento com IA (sinopse, ISBN, páginas...), respondendo o que guardou.
+
+| Variável | Para quê | Padrão |
+|---|---|---|
+| `OCR_URL_BASE` | Endereço do `ocr-service`. Vazio = o bot não lê fotos | no compose: `http://ocr-service:8301` |
+| `OCR_INTERNAL_TOKEN` | Segredo enviado em `X-Internal-Token`. O OCR ainda **não valida** o cabeçalho (tarefa F do OCR); vazio = não envia | vazio |
+| `DATABASE_SERVICE_URL` | Endereço do `database-service`, sem o prefixo da API. Vazio = o bot não guarda livros | no compose: `http://database-service:8080` |
+| `OCR_FOTOS_POR_MINUTO` | Limite de fotos por usuário | `3` |
+
+- **Só chats vinculados** e cujo vínculo seja o **id numérico do banco** (o do site). Um vínculo de exemplo, como `teste-1`, recebe a orientação de que a conta não está ligada a uma estante.
+- **Sem `GEMINI_API_KEY` no OCR**, ele devolve só o texto bruto: o bot responde que não conseguiu separar título e autor e **não salva nada**. Com a chave, o livro entra na estante; sem a chave no banco, o enriquecimento falha e o livro fica como o OCR leu.
+- O limite é por usuário (o vínculo é de um chat por usuário). Duplicatas ainda não são detectadas: a mesma foto duas vezes cria dois livros.
+
 ### API para o front (conectar o Telegram)
 
 | Método e rota | O que faz | Resposta |

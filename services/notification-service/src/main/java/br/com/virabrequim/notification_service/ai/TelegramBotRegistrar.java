@@ -29,6 +29,7 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
     private final Optional<TelegramClient> telegramClient;
     private final ConexaoTelegramService conexaoTelegramService;
     private final AgenteConversacional agenteConversacional;
+    private final AgenteDeFotos agenteDeFotos;
     private final ExecutorService conversas = Executors.newVirtualThreadPerTaskExecutor();
     private TelegramBotsLongPollingApplication longPollingApplication;
 
@@ -36,11 +37,13 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
             @Value("${telegram.bot.token:}") String token,
             Optional<TelegramClient> telegramClient,
             ConexaoTelegramService conexaoTelegramService,
-            AgenteConversacional agenteConversacional) {
+            AgenteConversacional agenteConversacional,
+            AgenteDeFotos agenteDeFotos) {
         this.token = token;
         this.telegramClient = telegramClient;
         this.conexaoTelegramService = conexaoTelegramService;
         this.agenteConversacional = agenteConversacional;
+        this.agenteDeFotos = agenteDeFotos;
     }
 
     @Override
@@ -53,7 +56,7 @@ public class TelegramBotRegistrar implements ApplicationRunner, DisposableBean {
         try {
             longPollingApplication = new TelegramBotsLongPollingApplication();
             TelegramBotAgent agente = new TelegramBotAgent(
-                    telegramClient.get(), conexaoTelegramService, agenteConversacional, conversas);
+                    telegramClient.get(), conexaoTelegramService, agenteConversacional, agenteDeFotos, conversas);
             longPollingApplication.registerBot(token, agente);
             log.info("Bot do Telegram registrado e escutando mensagens (long-polling).");
         } catch (TelegramApiException e) {

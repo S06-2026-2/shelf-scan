@@ -95,6 +95,10 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       CORS_ORIGENS_PERMITIDAS: ${CORS_ORIGENS_PERMITIDAS:-http://localhost:5173}
+      # Fotos de livros pelo bot: o bot lê no OCR e guarda na estante (portas internas do compose)
+      OCR_URL_BASE: http://ocr-service:8301
+      OCR_INTERNAL_TOKEN: ${OCR_INTERNAL_TOKEN:-}
+      DATABASE_SERVICE_URL: http://database-service:8080
     depends_on:
       notification-db:
         condition: service_healthy
