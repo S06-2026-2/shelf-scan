@@ -4,6 +4,7 @@ import br.com.virabrequim.database_service.config.WebConfig;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
 import br.com.virabrequim.database_service.dto.AtualizacaoUsuario;
 import br.com.virabrequim.database_service.dto.NovoUsuario;
+import br.com.virabrequim.database_service.dto.Referencia;
 import br.com.virabrequim.database_service.dto.UsuarioResposta;
 import br.com.virabrequim.database_service.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 public class UsuarioController {
@@ -41,6 +43,12 @@ public class UsuarioController {
                 .buildAndExpand(usuario.getId())
                 .toUri();
         return ResponseEntity.created(local).body(UsuarioResposta.de(usuario));
+    }
+
+    // Só id e nome: a lista é para achar pessoas e não expõe o email de todo mundo
+    @GetMapping("/usuario")
+    public List<Referencia> listar() {
+        return usuarioService.listarUsuariosComuns().stream().map(Referencia::de).toList();
     }
 
     @GetMapping("/usuario/{id}")

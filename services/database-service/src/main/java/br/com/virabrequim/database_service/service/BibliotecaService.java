@@ -1,5 +1,6 @@
 package br.com.virabrequim.database_service.service;
 
+import br.com.virabrequim.database_service.domain.Textos;
 import br.com.virabrequim.database_service.domain.node.BibliotecaNode;
 import br.com.virabrequim.database_service.domain.node.CidadeNode;
 import br.com.virabrequim.database_service.domain.node.UsuarioNode;
@@ -11,6 +12,8 @@ import br.com.virabrequim.database_service.repository.EstadoRepository;
 import br.com.virabrequim.database_service.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -43,6 +46,12 @@ public class BibliotecaService {
     public BibliotecaNode buscar(Long id) {
         return bibliotecaRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Biblioteca " + id + " não encontrada."));
+    }
+
+    public List<BibliotecaNode> listar() {
+        return bibliotecaRepository.findAll().stream()
+                .sorted(Comparator.comparing(BibliotecaNode::getNome, Textos.ALFABETICA))
+                .toList();
     }
 
     public BibliotecaNode atualizar(Long id, AtualizacaoBiblioteca dados) {

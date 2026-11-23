@@ -1,10 +1,14 @@
 package br.com.virabrequim.database_service.domain;
 
 import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.Locale;
 
 // Normalização de textos usada para comparar e identificar nomes (autores e tags)
 public final class Textos {
+
+    // Ordem alfabética sem diferenciar maiúsculas e acentos ("Ágata" vem antes de "Bruno"); sem nome vai para o fim
+    public static final Comparator<String> ALFABETICA = Comparator.nullsLast(Comparator.comparing(Textos::chave));
 
     private Textos() {
     }

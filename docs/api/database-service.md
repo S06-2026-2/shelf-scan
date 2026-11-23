@@ -13,6 +13,9 @@ specs em `docs/specs/database-service/` (citadas em cada rota).
 (Usuario)-[:ESTANTE_PADRAO]->(Estante)        ← a padrão também tem HAS
 (Usuario:Biblioteca)                           ← BibliotecaNode extends UsuarioNode
 (Biblioteca)-[:FICA_EM]->(Cidade)-[:PERTENCE_A]->(Estado)   ← ids = códigos IBGE (7 e 2 dígitos)
+(Usuario)-[:SOLICITOU_AMIZADE {em}]->(Usuario)              ← pedido pendente
+(Usuario)-[:AMIGO {desde}]-(Usuario)                        ← sem direção: vale para os dois lados
+(Usuario)-[:MEMBRO_DE {desde}]->(Biblioteca)                ← cliente da biblioteca
 (Livro)-[:WRITTEN_BY]->(Autor)
 (Livro)-[:HAS_TAG]->(Tag)
 ```
@@ -76,10 +79,12 @@ A separação entre usuário comum e biblioteca existe **só no CRUD**. As rotas
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
 | `POST` | `/usuario` | `NovoUsuario` | `201` `Usuario` | `400` nome/email inválido · `409` email já usado |
+| `GET` | `/usuario` | — | `200` `{ id, nome }[]` (só usuários comuns) | — |
 | `GET` | `/usuario/{usuarioId}` | — | `200` `Usuario` | `404` (também se o id for de uma biblioteca) |
 | `PATCH` | `/usuario/{usuarioId}` | `AtualizacaoUsuario` | `200` `Usuario` | `400` · `404` · `409` email já usado |
 | `DELETE` | `/usuario/{usuarioId}` | — | `204` | `404` (também se for biblioteca) |
 | `POST` | `/biblioteca` | `NovaBiblioteca` | `201` `Biblioteca` | `400` · `409` email já usado |
+| `GET` | `/biblioteca` | — | `200` `Biblioteca[]` | — |
 | `GET` | `/biblioteca/{bibliotecaId}` | — | `200` `Biblioteca` | `404` (também se o id for de usuário comum) |
 | `PATCH` | `/biblioteca/{bibliotecaId}` | `AtualizacaoBiblioteca` | `200` `Biblioteca` | `400` · `404` · `409` |
 | `DELETE` | `/biblioteca/{bibliotecaId}` | — | `204` | `404` |
@@ -87,7 +92,31 @@ A separação entre usuário comum e biblioteca existe **só no CRUD**. As rotas
 - O usuário (e a biblioteca) já nasce com a estante padrão "Minha estante".
 - O email é único entre usuários **e** bibliotecas.
 - `PATCH`: campo ausente ou `null` = não alterar.
+- As listas `GET /usuario` e `GET /biblioteca` vêm em ordem alfabética. A de usuários não traz email.
 - `GET /usuario/{id}` com id de biblioteca responde `404` com `detail` indicando `/biblioteca/{id}`.
+
+## Amigos e membros
+
+Specs: `AmizadeService.md` e `MembroService.md`. Só **usuários comuns** têm amigos e viram membros de bibliotecas.
+
+| Método | Rota | Corpo | Resposta | Erros |
+| --- | --- | --- | --- | --- |
+| `POST` | `/usuario/{usuarioId}/solicitacao-amizade` | `NovaSolicitacaoAmizade` | `201` `Amizade` | `400` para si mesmo · `404` (também se for biblioteca) · `409` já são amigos ou pedido já enviado |
+| `GET` | `/usuario/{usuarioId}/solicitacao-amizade/recebidas` | — | `200` `SolicitacaoAmizade[]` | `404` |
+| `GET` | `/usuario/{usuarioId}/solicitacao-amizade/enviadas` | — | `200` `SolicitacaoAmizade[]` | `404` |
+| `POST` | `/usuario/{usuarioId}/solicitacao-amizade/{solicitanteId}/aceite` | — | `200` `Amizade` | `404` não há pedido dessa pessoa |
+| `DELETE` | `/usuario/{usuarioId}/solicitacao-amizade/{outroId}` | — | `204` | `404` não há pedido |
+| `GET` | `/usuario/{usuarioId}/amigo` | — | `200` `Amigo[]` | `404` |
+| `DELETE` | `/usuario/{usuarioId}/amigo/{amigoId}` | — | `204` | `404` não são amigos |
+| `PUT` | `/usuario/{usuarioId}/biblioteca/{bibliotecaId}` | — | `204` (repetir não é erro) | `404` usuário ou biblioteca |
+| `DELETE` | `/usuario/{usuarioId}/biblioteca/{bibliotecaId}` | — | `204` | `404` não é membro |
+| `GET` | `/usuario/{usuarioId}/biblioteca` | — | `200` `BibliotecaDoUsuario[]` | `404` |
+| `GET` | `/biblioteca/{bibliotecaId}/membro` | — | `200` `Membro[]` | `404` |
+
+- Pedir amizade para quem **já tinha pedido** vira amizade na hora (`"estado": "amigos"` na resposta do `POST`).
+- O `DELETE` da solicitação **recusa** (quem recebeu) ou **cancela** (quem enviou). Pode pedir de novo depois.
+- Virar membro é direto: a biblioteca não aprova.
+- Desfazer a amizade ou sair da biblioteca não afeta empréstimos ativos.
 
 ## Estantes
 
@@ -184,7 +213,7 @@ Spec: `EmprestimoService.md` e `EmprestimoRelationship.md`.
 
 | Método | Rota | Corpo | Resposta | Erros |
 | --- | --- | --- | --- | --- |
-| `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | `NovoEmprestimo` | `201` `Emprestimo` | `400` data/mesmo usuário · `404` · `409` já emprestado |
+| `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | `NovoEmprestimo` | `201` `Emprestimo` | `400` data/mesmo usuário · `404` · `409` já emprestado ou sem vínculo |
 | `POST` | `/usuario/{donoId}/livro/{livroId}/emprestimo/devolucao` | `Devolucao` (opcional) | `200` `Emprestimo` | `400` data · `404` · `409` não está emprestado |
 | `GET` | `/usuario/{donoId}/livro/{livroId}/emprestimo` | — | `200` `Emprestimo[]` (histórico, mais recente primeiro) | `404` |
 | `GET` | `/usuario/{usuarioId}/emprestimo` | — | `200` `EmprestimoDoUsuario[]` (ativos, dono e mutuário) | `404` |
@@ -199,6 +228,8 @@ não uma edição livre de campos. As rotas `/emprestimo/vencendo` e `/vencidos`
 - O empréstimo começa **hoje** e a data prevista tem que ser depois de hoje (prazo mínimo de 1 dia).
 - A leitura de quem pegou o livro começa em `quero-ler`, página 0. Se a mesma pessoa já pegou **este livro** antes,
   a leitura continua de onde parou no último empréstimo dela (status, página e data de conclusão).
+- Só se empresta para **amigos** ou, se o dono for biblioteca, para **membros** dela (`409` sem esse vínculo). O vínculo
+  só é exigido ao emprestar.
 - Só o dono empresta, devolve e vê o histórico; para outra pessoa o livro "não existe" (`404`).
 - `/usuario/{usuarioId}/emprestimo` (e `/vencendo`, `/vencidos`) lista só empréstimos **ativos** do usuário, dos dois
   lados: livros dele que estão com outra pessoa (`papel: "dono"`) e livros que ele pegou (`papel: "mutuario"`),
@@ -292,6 +323,11 @@ Os DTOs são `record`s Java no pacote `dto`, separados das entidades. Os de entr
 | `mutuarioId` | long | sim | quem pega o livro |
 | `dataPrevistaDevolucao` | data | sim | depois de hoje; o empréstimo começa hoje |
 
+**`NovaSolicitacaoAmizade`**
+| Campo | Tipo | Obrigatório | Observação |
+| --- | --- | --- | --- |
+| `destinatarioId` | long | sim | para quem é o pedido |
+
 **`Devolucao`**
 | Campo | Tipo | Obrigatório | Observação |
 | --- | --- | --- | --- |
@@ -316,6 +352,31 @@ livro pode ser uma biblioteca).
   },
   "horarioAbertura": "08:00", "horarioFechamento": "22:00"
 }
+```
+
+**`Amizade`** (a outra pessoa vem em `usuario`; `estado` é `"pendente"` ou `"amigos"`)
+```json
+{ "estado": "pendente", "usuario": { "id": 2, "nome": "Bruno" } }
+```
+
+**`SolicitacaoAmizade`** (`id` e `nome` são da outra pessoa)
+```json
+{ "id": 2, "nome": "Bruno", "solicitadaEm": "2026-03-10", "amigosEmComum": 3 }
+```
+
+**`Amigo`**
+```json
+{ "id": 2, "nome": "Bruno", "desde": "2026-03-10", "amigosEmComum": 3 }
+```
+
+**`BibliotecaDoUsuario`**
+```json
+{ "id": 4, "nome": "Biblioteca Inatel", "cidade": "Santa Rita do Sapucaí", "estado": "MG", "desde": "2026-03-10" }
+```
+
+**`Membro`**
+```json
+{ "id": 1, "nome": "Ana Souza", "desde": "2026-03-10" }
 ```
 
 **`Estante`**
@@ -388,7 +449,7 @@ A estante virtual vem com `"id": null`, `"nome": "Emprestados comigo"`, `"padrao
 
 - Autenticação (o usuário vem da rota).
 - Perda de histórico ao apagar: apagar um usuário ou um livro apaga os empréstimos (e as leituras guardadas neles).
-- Relações entre usuários: `AMIGO` (usuários comuns) e `SEGUE` (cliente → biblioteca).
+- Buscar usuários e bibliotecas por nome ou email (hoje só se listam todos).
 - Recomendações por agente de IA.
 - Paginação das listas.
 - Diferenciar autores homônimos (hoje o mesmo nome é o mesmo autor).

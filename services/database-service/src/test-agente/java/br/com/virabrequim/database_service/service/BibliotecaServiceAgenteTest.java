@@ -16,9 +16,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -376,6 +378,51 @@ class BibliotecaServiceAgenteTest {
             when(bibliotecaRepository.existsById(1L)).thenReturn(false);
             assertThrows(NoSuchElementException.class, () -> service.apagar(1L));
             verify(usuarioRepository, never()).apagarComEstantesELivros(anyLong());
+        }
+    }
+
+    @Nested
+    @DisplayName("Listar")
+    class Listar {
+
+        private BibliotecaNode biblioteca(String nome, String email) {
+            return new BibliotecaNode(nome, email);
+        }
+
+        @Test
+        @DisplayName("E15 (B10): lista em ordem alfabética sem diferenciar acentos")
+        void ordemAlfabetica() {
+            BibliotecaNode municipal = biblioteca("Municipal", "municipal@email.com");
+            BibliotecaNode inatel = biblioteca("Inatel", "inatel@email.com");
+            BibliotecaNode alvares = biblioteca("Álvares", "alvares@email.com");
+            when(bibliotecaRepository.findAll()).thenReturn(List.of(municipal, inatel, alvares));
+            assertThat(service.listar()).containsExactly(alvares, inatel, municipal);
+        }
+
+        @Test
+        @DisplayName("E15 (B10): sem bibliotecas retorna lista vazia")
+        void vazia() {
+            when(bibliotecaRepository.findAll()).thenReturn(List.of());
+            assertThat(service.listar()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("B10 (derivado): ordem não diferencia maiúsculas")
+        @Tag("derivado")
+        void semDiferenciarMaiusculas() {
+            BibliotecaNode zeta = biblioteca("Zeta", "zeta@email.com");
+            BibliotecaNode alfa = biblioteca("alfa", "alfa@email.com");
+            when(bibliotecaRepository.findAll()).thenReturn(List.of(zeta, alfa));
+            assertThat(service.listar()).containsExactly(alfa, zeta);
+        }
+
+        @Test
+        @DisplayName("B10 (derivado): listar não salva nada")
+        @Tag("derivado")
+        void naoSalva() {
+            when(bibliotecaRepository.findAll()).thenReturn(List.of(biblioteca("Inatel", "inatel@email.com")));
+            service.listar();
+            verify(bibliotecaRepository, never()).save(any());
         }
     }
 }

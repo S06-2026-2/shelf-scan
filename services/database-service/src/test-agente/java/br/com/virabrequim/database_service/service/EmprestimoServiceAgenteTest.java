@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -95,6 +96,8 @@ class EmprestimoServiceAgenteTest {
         when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
         when(usuarioRepository.findDonoDoLivro(5L)).thenReturn(Optional.of(ana));
         when(usuarioRepository.findDonoDoLivro(99L)).thenReturn(Optional.empty());
+        when(usuarioRepository.podeEmprestarPara(1L, 2L)).thenReturn(true);
+        when(usuarioRepository.podeEmprestarPara(1L, 3L)).thenReturn(true);
         when(livroRepository.findById(5L)).thenReturn(Optional.of(livro5));
         when(livroRepository.findById(99L)).thenReturn(Optional.empty());
         when(livroRepository.save(any(LivroNode.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -351,6 +354,229 @@ class EmprestimoServiceAgenteTest {
             assertAll(
                     () -> assertThat(service.listarVencendo()).containsExactly(venceHoje),
                     () -> assertThat(service.listarVencidos()).isEmpty());
+        }
+    }
+
+    private static EmprestimoRelationship devolvidoComLeitura(UsuarioNode usuario, LocalDate dataEmprestimo,
+            LocalDate devolucao, StatusLeitura status, Integer pagina, LocalDate conclusao) {
+        EmprestimoRelationship e = emprestimo(usuario, dataEmprestimo, devolucao.plusDays(5), devolucao);
+        e.setStatusLeitura(status);
+        e.setPaginaAtual(pagina);
+        e.setDataConclusaoLeitura(conclusao);
+        return e;
+    }
+
+    @Nested
+    @DisplayName("Continuar leitura (M11)")
+    class ContinuarLeitura {
+
+        private EmprestimoRelationship antigoBruno;
+        private EmprestimoRelationship antigoCarla;
+        private final LocalDate conclusaoCarla = dia(25, 2);
+
+        @BeforeEach
+        void historicoDoLivro() {
+            antigoBruno = devolvidoComLeitura(bruno, dia(1, 2), dia(10, 2), StatusLeitura.LENDO, 80, null);
+            antigoCarla = devolvidoComLeitura(carla, dia(15, 2), dia(28, 2), StatusLeitura.LIDO, 200, conclusaoCarla);
+        }
+
+        @Test
+        @DisplayName("E20 (M11): Bruno pega de novo e continua LENDO na página 80; o antigo não muda")
+        void brunoContinua() {
+            livro5.getEmprestimos().addAll(List.of(antigoBruno, antigoCarla));
+
+            EmprestimoRelationship novo = service.emprestar(1L, 5L, 2L, PREVISTA);
+
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, novo.getStatusLeitura()),
+                    () -> assertEquals(80, novo.getPaginaAtual()),
+                    () -> assertEquals(StatusLeitura.LENDO, antigoBruno.getStatusLeitura()),
+                    () -> assertEquals(80, antigoBruno.getPaginaAtual()));
+        }
+
+        @Test
+        @DisplayName("E21 (M11): Carla pega de novo e começa LIDO com a mesma data de conclusão")
+        void carlaContinua() {
+            livro5.getEmprestimos().addAll(List.of(antigoBruno, antigoCarla));
+
+            EmprestimoRelationship novo = service.emprestar(1L, 5L, 3L, PREVISTA);
+
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LIDO, novo.getStatusLeitura()),
+                    () -> assertEquals(conclusaoCarla, novo.getDataConclusaoLeitura()));
+        }
+
+        @Test
+        @DisplayName("E22 (M11, M5): Carla nunca pegou o livro e começa QUERO_LER na página 0")
+        void carlaComecaDoZero() {
+            livro5.getEmprestimos().add(antigoBruno);
+
+            EmprestimoRelationship novo = service.emprestar(1L, 5L, 3L, PREVISTA);
+
+            assertAll(
+                    () -> assertEquals(StatusLeitura.QUERO_LER, novo.getStatusLeitura()),
+                    () -> assertEquals(0, novo.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M11 (derivado): continua do empréstimo mais recente dele pela data, não pela posição na lista")
+        void maisRecentePelaData() {
+            EmprestimoRelationship recente =
+                    devolvidoComLeitura(bruno, dia(15, 2), dia(20, 2), StatusLeitura.LENDO, 40, null);
+            EmprestimoRelationship antigo =
+                    devolvidoComLeitura(bruno, dia(1, 2), dia(10, 2), StatusLeitura.LIDO, 300, dia(9, 2));
+            livro5.getEmprestimos().addAll(List.of(recente, antigo));
+
+            EmprestimoRelationship novo = service.emprestar(1L, 5L, 2L, PREVISTA);
+
+            assertAll(
+                    () -> assertEquals(StatusLeitura.LENDO, novo.getStatusLeitura()),
+                    () -> assertEquals(40, novo.getPaginaAtual()));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M11 (derivado): último empréstimo dele sem leitura (status null) começa QUERO_LER na página 0")
+        void anteriorSemLeitura() {
+            livro5.getEmprestimos().add(devolvidoComLeitura(bruno, dia(1, 2), dia(10, 2), null, null, null));
+
+            EmprestimoRelationship novo = service.emprestar(1L, 5L, 2L, PREVISTA);
+
+            assertAll(
+                    () -> assertEquals(StatusLeitura.QUERO_LER, novo.getStatusLeitura()),
+                    () -> assertEquals(0, novo.getPaginaAtual()));
+        }
+    }
+
+    @Nested
+    @DisplayName("Vínculo (M14)")
+    class Vinculo {
+
+        @Test
+        @DisplayName("E25 (M14): sem vínculo lança IllegalStateException e save não é chamado")
+        void semVinculo() {
+            when(usuarioRepository.podeEmprestarPara(1L, 2L)).thenReturn(false);
+            assertThrows(IllegalStateException.class, () -> service.emprestar(1L, 5L, 2L, PREVISTA));
+            verify(livroRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("E26 (M14): vínculo desfeito não impede a devolução")
+        void devolveSemVinculo() {
+            when(usuarioRepository.podeEmprestarPara(1L, 2L)).thenReturn(false);
+            EmprestimoRelationship ativo = emprestimo(bruno, dia(1, 3), dia(12, 3), null);
+            livro5.getEmprestimos().add(ativo);
+
+            service.devolver(1L, 5L, null);
+
+            assertTrue(ativo.isDevolvido());
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M14 (derivado): histórico e listagens não consultam o vínculo")
+        void naoConsultaVinculo() {
+            livro5.getEmprestimos().add(emprestimo(bruno, dia(1, 3), dia(12, 3), null));
+            when(livroRepository.findAllComEmprestimoAtivo()).thenReturn(List.of(livro5));
+            when(livroRepository.findAllComEmprestimoAtivoPara(2L)).thenReturn(List.of(livro5));
+            when(livroRepository.findAllEmprestadosPor(2L)).thenReturn(List.of());
+
+            service.historico(1L, 5L);
+            service.listarEmprestadosPara(2L);
+            service.listarAtivosDoUsuario(2L);
+            service.listarVencendo();
+            service.listarVencidos();
+
+            verify(usuarioRepository, never()).podeEmprestarPara(anyLong(), anyLong());
+        }
+    }
+
+    @Nested
+    @DisplayName("Histórico (desempate)")
+    class HistoricoDesempate {
+
+        @Test
+        @DisplayName("E17b (M10): empate na data, maior id vem primeiro")
+        void maiorIdPrimeiro() {
+            EmprestimoRelationship q = emprestimo(carla, HOJE, dia(20, 3), null);
+            q.setId(31L);
+            EmprestimoRelationship p = emprestimo(bruno, HOJE, dia(20, 3), HOJE);
+            p.setId(19L);
+            livro5.getEmprestimos().addAll(List.of(q, p));
+
+            assertThat(service.historico(1L, 5L)).containsExactly(q, p);
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M10 (derivado): empate na data, empréstimo sem id vem antes do que tem id")
+        void semIdPrimeiro() {
+            EmprestimoRelationship semId = emprestimo(carla, HOJE, dia(20, 3), null);
+            EmprestimoRelationship comId = emprestimo(bruno, HOJE, dia(20, 3), HOJE);
+            comId.setId(31L);
+            livro5.getEmprestimos().addAll(List.of(semId, comId));
+
+            assertThat(service.historico(1L, 5L)).containsExactly(semId, comId);
+        }
+    }
+
+    @Nested
+    @DisplayName("Empréstimos do usuário (M12, M13)")
+    class DoUsuario {
+
+        private LivroNode livroA;
+        private LivroNode livroB;
+        private LivroNode livroC;
+
+        @BeforeEach
+        void livros() {
+            livroA = livroCom(101L, emprestimo(bruno, dia(1, 3), dia(12, 3), null));
+            livroB = livroCom(102L, emprestimo(carla, dia(1, 3), dia(24, 3), null));
+            livroC = livroCom(103L, emprestimo(bruno, dia(1, 3), dia(8, 3), null));
+            when(livroRepository.findAllEmprestadosPor(2L)).thenReturn(List.of(livroB));
+            when(livroRepository.findAllComEmprestimoAtivoPara(2L)).thenReturn(List.of(livroA, livroC));
+        }
+
+        @Test
+        @DisplayName("E23 (M12): junta os dois lados ordenando pela data prevista")
+        void ativosDoUsuario() {
+            assertThat(service.listarAtivosDoUsuario(2L)).containsExactly(livroC, livroA, livroB);
+        }
+
+        @Test
+        @DisplayName("E23 (M12): usuário inexistente lança NoSuchElementException")
+        void usuarioInexistente() {
+            assertThrows(NoSuchElementException.class, () -> service.listarAtivosDoUsuario(99L));
+        }
+
+        @Test
+        @DisplayName("E24 (M13): vencendo do usuário = [A] e vencidos do usuário = [C]")
+        void vencendoEVencidosDoUsuario() {
+            assertAll(
+                    () -> assertThat(service.listarVencendoDoUsuario(2L)).containsExactly(livroA),
+                    () -> assertThat(service.listarVencidosDoUsuario(2L)).containsExactly(livroC));
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M12 (derivado): empréstimo sem data prevista vai para o fim")
+        void semDataPrevistaNoFim() {
+            LivroNode livroD = livroCom(104L, emprestimo(carla, dia(1, 3), null, null));
+            when(livroRepository.findAllEmprestadosPor(2L)).thenReturn(List.of(livroD, livroB));
+
+            assertThat(service.listarAtivosDoUsuario(2L)).containsExactly(livroC, livroA, livroB, livroD);
+        }
+
+        @Test
+        @Tag("derivado")
+        @DisplayName("M13 (derivado): vencidos do usuário ignora empréstimo sem data prevista, sem lançar exceção")
+        void vencidosIgnoraInconsistente() {
+            LivroNode livroD = livroCom(104L, emprestimo(carla, dia(1, 3), null, null));
+            when(livroRepository.findAllEmprestadosPor(2L)).thenReturn(List.of(livroD, livroB));
+
+            List<LivroNode> vencidos = assertDoesNotThrow(() -> service.listarVencidosDoUsuario(2L));
+            assertThat(vencidos).containsExactly(livroC);
         }
     }
 }

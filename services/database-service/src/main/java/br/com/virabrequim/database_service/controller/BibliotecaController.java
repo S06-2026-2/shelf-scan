@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 public class BibliotecaController {
@@ -38,6 +39,11 @@ public class BibliotecaController {
                 .buildAndExpand(biblioteca.getId())
                 .toUri();
         return ResponseEntity.created(local).body(BibliotecaResposta.de(biblioteca));
+    }
+
+    @GetMapping("/biblioteca")
+    public List<BibliotecaResposta> listar() {
+        return bibliotecaService.listar().stream().map(BibliotecaResposta::de).toList();
     }
 
     @GetMapping("/biblioteca/{id}")

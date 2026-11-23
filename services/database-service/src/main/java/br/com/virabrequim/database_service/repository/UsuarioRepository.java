@@ -6,6 +6,7 @@ import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -13,6 +14,14 @@ public interface UsuarioRepository extends Neo4jRepository<UsuarioNode, Long> {
 
     // Query derivada do nome do métódo: MATCH (u:Usuario {email: $email}) RETURN count(u) > 0
     boolean existsByEmail(String email);
+
+    // Só usuários comuns: o nó da biblioteca também tem o label Usuario
+    @Query("MATCH (u:Usuario) WHERE NOT u:Biblioteca RETURN id(u)")
+    List<Long> findIdsDeUsuariosComuns();
+
+    default List<UsuarioNode> findAllUsuariosComuns() {
+        return findAllById(findIdsDeUsuariosComuns());
+    }
 
     // O dono é derivado do caminho Livro -> Estante <- Usuario
     @Query("MATCH (u:Usuario)-[:HAS]->(:Estante)<-[:STORED_IN]-(l:Livro) WHERE id(l) = $livroId RETURN id(u)")
@@ -22,6 +31,12 @@ public interface UsuarioRepository extends Neo4jRepository<UsuarioNode, Long> {
     default Optional<UsuarioNode> findDonoDoLivro(Long livroId) {
         return findIdDoDonoDoLivro(livroId).flatMap(this::findById);
     }
+
+    // Quem pode pegar um livro do dono: amigo dele, ou membro (cliente) se o dono for biblioteca
+    @Query("""
+            MATCH (dono:Usuario), (mutuario:Usuario) WHERE id(dono) = $donoId AND id(mutuario) = $mutuarioId
+            RETURN EXISTS { (dono)-[:AMIGO]-(mutuario) } OR EXISTS { (mutuario)-[:MEMBRO_DE]->(dono) }""")
+    boolean podeEmprestarPara(Long donoId, Long mutuarioId);
 
     // Apaga o usuário (comum ou biblioteca), as estantes dele e os livros guardados nelas, numa query só (atômica).
     // - Livro com empréstimo ativo (LENT_TO sem dataDevolucao) NÃO é apagado: perde só a estante e fica sem dono.

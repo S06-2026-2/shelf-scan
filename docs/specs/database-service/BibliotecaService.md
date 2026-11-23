@@ -28,6 +28,7 @@ Nos testes, os repositórios são mocks (Mockito).
 | `BibliotecaService(BibliotecaRepository bibliotecaRepository, UsuarioRepository usuarioRepository, CidadeRepository cidadeRepository, EstadoRepository estadoRepository)` | Injeção pelo construtor | — |
 | `BibliotecaNode criar(BibliotecaNode novaBiblioteca)` | Salva uma biblioteca já montada | B1–B3 |
 | `BibliotecaNode buscar(Long id)` | Busca a biblioteca | B4 |
+| `List<BibliotecaNode> listar()` | Todas as bibliotecas | B10 |
 | `BibliotecaNode atualizar(Long id, AtualizacaoBiblioteca dados)` | Atualização parcial (PATCH) | B3–B8 |
 | `void apagar(Long id)` | Apaga a biblioteca e o que é dela | B9 |
 
@@ -37,6 +38,7 @@ Colaboradores usados (mockados nos testes):
 | --- | --- |
 | `BibliotecaRepository.save(BibliotecaNode biblioteca)` | a biblioteca salva |
 | `BibliotecaRepository.findById(Long id)` | `Optional<BibliotecaNode>` |
+| `BibliotecaRepository.findAll()` | `List<BibliotecaNode>` (em qualquer ordem) |
 | `BibliotecaRepository.existsById(Long id)` | `boolean` |
 | `UsuarioRepository.existsByEmail(String email)` | `boolean` |
 | `UsuarioRepository.apagarComEstantesELivros(Long usuarioId)` | `void` |
@@ -77,6 +79,8 @@ Entidades e DTOs:
 - **B9.** `apagar(id)`: se `bibliotecaRepository.existsById(id)` for `false`, lança `NoSuchElementException` e nada é
   apagado. Senão, chama `usuarioRepository.apagarComEstantesELivros(id)` (a mesma deleção do usuário comum: apaga a
   biblioteca, as estantes e os livros, menos os emprestados).
+- **B10.** `listar()` retorna as bibliotecas de `findAll()` em ordem alfabética de nome, sem diferenciar maiúsculas e
+  acentos. Sem bibliotecas, retorna lista vazia. Não salva nada.
 
 ## Exemplos
 
@@ -113,6 +117,8 @@ Cidade Santa Rita do Sapucaí: código 3159605, estado MG (31).
   `apagarComEstantesELivros(2L)` é chamado.
 - **E14 (B9).** Dado `existsById(1L)` = `false`, Quando chamo `apagar(1L)`, Então `NoSuchElementException` e
   `apagarComEstantesELivros` não é chamado.
+- **E15 (B10).** Dado `findAll()` = [Municipal, Inatel, Álvares], Quando chamo `listar()`, Então retorna
+  [Álvares, Inatel, Municipal]. Com lista vazia, retorna lista vazia.
 
 ## Casos de borda
 
