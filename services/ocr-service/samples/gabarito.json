@@ -1,0 +1,49 @@
+{
+  "fotos": [
+    {
+      "arquivo": "memorias_subsolo.jpg",
+      "titulo": "Memórias do Subsolo",
+      "autores": ["Fiódor Dostoiévski"],
+      "editora": "Editora 34",
+      "volumes": [],
+      "livros": 1,
+      "palavras": ["MEMORIAS", "SUBSOLO"]
+    },
+    {
+      "arquivo": "lombada_frieren.jpeg",
+      "titulo": "Frieren e a Jornada para o Além",
+      "autores": ["Kanehito Yamada", "Tsukasa Abe"],
+      "editora": "Planet Manga",
+      "volumes": ["4", "6", "7", "8", "9", "10", "11", "12"],
+      "livros": 8,
+      "palavras": ["FRIEREN", "JORNADA", "ALEM"]
+    },
+    {
+      "arquivo": "lombada_blue_box.jpeg",
+      "titulo": "Blue Box",
+      "autores": ["Kouji Miura"],
+      "editora": "JBC",
+      "volumes": ["1", "2", "3", "4", "5", "6"],
+      "livros": 6,
+      "palavras": ["BLUE", "BOX"]
+    },
+    {
+      "arquivo": "lombada_frieren_vol10.jpeg",
+      "titulo": "Frieren e a Jornada para o Além",
+      "autores": ["Kanehito Yamada", "Tsukasa Abe"],
+      "editora": "Planet Manga",
+      "volumes": ["10"],
+      "livros": 1,
+      "palavras": ["FRIEREN", "JORNADA", "ALEM"]
+    },
+    {
+      "arquivo": "lombada_blue_box_vol3.jpeg",
+      "titulo": "Blue Box",
+      "autores": ["Kouji Miura"],
+      "editora": "JBC",
+      "volumes": ["3"],
+      "livros": 1,
+      "palavras": ["BLUE", "BOX"]
+    }
+  ]
+}
