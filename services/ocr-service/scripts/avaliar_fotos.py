@@ -7,6 +7,7 @@ Uso (a partir de services/ocr-service/, no container, que tem o Tesseract):
 Para cada foto de samples/gabarito.json, roda o EAST e o pipeline (sem o agente)
 e imprime uma linha com:
     - caixas: quantas regiões o EAST encontrou;
+    - fusão: quantas sobram depois da merge_boxes, que são as que o OCR lê;
     - linhas: quantas linhas o raw_text tem;
     - tempo: o tempo do pipeline (decodificação, EAST e OCR), sem o agente;
     - palavras: em quantas linhas do raw_text cada palavra-chave do título saiu
@@ -29,6 +30,7 @@ sys.path.insert(0, str(SERVICE_DIR))
 
 from ocr.image_input import decode_image  # noqa: E402
 from ocr.pipeline import run_pipeline  # noqa: E402
+from ocr.regions import merge_boxes  # noqa: E402
 from ocr.text_detector import EastTextDetector  # noqa: E402
 
 EAST_PATH = SERVICE_DIR / "models" / "frozen_east_text_detection.pb"
@@ -73,6 +75,23 @@ def load_gabarito(path=GABARITO_PATH):
         return json.load(file)["fotos"]
 
 
+def count_boxes(detector, img_bytes):
+    """Conta as caixas do EAST e as que sobram depois da fusão (merge_boxes)
+
+    O pipeline não expõe as caixas, então a contagem é feita à parte, com a
+    mesma fusão que o run_pipeline aplica antes do OCR.
+
+    ARGS:
+        detector: EastTextDetector já carregado (ou um detector falso, nos testes)
+        img_bytes: Conteúdo do arquivo da foto
+
+    RETURNS:
+        (caixas do EAST, caixas depois da fusão)
+    """
+    regions = detector.detect_text(decode_image(img_bytes))
+    return len(regions), len(merge_boxes(regions))
+
+
 def evaluate_photo(detector, photo, samples_dir=SAMPLES_DIR):
     """Roda o EAST e o pipeline numa foto do gabarito e mede o resultado
 
@@ -82,14 +101,13 @@ def evaluate_photo(detector, photo, samples_dir=SAMPLES_DIR):
         samples_dir: Pasta onde está o arquivo da foto
 
     RETURNS:
-        Dicionário com arquivo, caixas, linhas, tempo_ms, detector, palavras
-        ({palavra: linhas em que saiu inteira}), inteiras e possiveis
+        Dicionário com arquivo, caixas, caixas_fusao, linhas, tempo_ms, detector,
+        palavras ({palavra: linhas em que saiu inteira}), inteiras e possiveis
     """
     img_bytes = (samples_dir / photo["arquivo"]).read_bytes()
 
-    # O pipeline não expõe as caixas, então elas são contadas à parte (o EAST roda
-    # duas vezes por foto, ~1 s a mais, que não entra no tempo medido)
-    boxes = len(detector.detect_text(decode_image(img_bytes)))
+    # O EAST roda duas vezes por foto (~1 s a mais), mas a contagem fica fora do tempo medido
+    boxes, merged = count_boxes(detector, img_bytes)
     result = run_pipeline(img_bytes, detector)
 
     raw_text = result["raw_text"]
@@ -97,6 +115,7 @@ def evaluate_photo(detector, photo, samples_dir=SAMPLES_DIR):
     return {
         "arquivo": photo["arquivo"],
         "caixas": boxes,
+        "caixas_fusao": merged,
         "linhas": len(raw_text.splitlines()),
         "tempo_ms": result["meta"]["elapsed_ms"],
         "detector": result["meta"]["detector"],
@@ -109,13 +128,14 @@ def evaluate_photo(detector, photo, samples_dir=SAMPLES_DIR):
 def print_row(row, livros):
     """Imprime o resultado de uma foto numa linha da tabela"""
     words = ", ".join(f"{word} {hits}/{livros}" for word, hits in row["palavras"].items())
-    print(f"{row['arquivo']:<28} {row['caixas']:>6} {row['linhas']:>6} {row['tempo_ms'] / 1000:>7.1f} s"
-          f"   {row['inteiras']:>2}/{row['possiveis']:<2}  {words}")
+    print(f"{row['arquivo']:<28} {row['caixas']:>6} {row['caixas_fusao']:>6} {row['linhas']:>6}"
+          f" {row['tempo_ms'] / 1000:>7.1f} s   {row['inteiras']:>2}/{row['possiveis']:<2}  {words}")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Mede caixas, tempo e palavras do título nas fotos do gabarito")
-    parser.add_argument("--gabarito", type=Path, default=GABARITO_PATH, help="JSON do gabarito (padrão: samples/gabarito.json)")
+    parser.add_argument("--gabarito", type=Path, default=GABARITO_PATH,
+                        help="JSON do gabarito (padrão: samples/gabarito.json)")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="JSON de saída (padrão: debug/avaliacao.json)")
     args = parser.parse_args(argv)
 
@@ -128,7 +148,7 @@ def main(argv=None):
     # Um detector só para todas as fotos: carregar o EAST custa ~1 s e ~630 MB
     detector = EastTextDetector(str(EAST_PATH))
 
-    print(f"{'foto':<28} {'caixas':>6} {'linhas':>6} {'tempo':>9}   inteiras  palavras")
+    print(f"{'foto':<28} {'caixas':>6} {'fusão':>6} {'linhas':>6} {'tempo':>9}   inteiras  palavras")
     rows = []
     for photo in photos:
         row = evaluate_photo(detector, photo, args.gabarito.parent)
